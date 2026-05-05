@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en" dir="auto" data-theme="dark">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script><meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<meta name="robots" content="noindex, nofollow">
+<title>Broken Access Control | GaDaK-H1 Pentest Notes</title>
+<meta name="keywords" content="access-control">
+<meta name="description" content="Theory, testing methodology, and common attack techniques for Broken Access Control.">
+<meta name="author" content="">
+<link rel="canonical" href="http://localhost:1313/posts/access_control/">
+<link crossorigin="anonymous" href="/assets/css/stylesheet.1665690bba8ed9b3525c2387ab1627146fb5977f82e7efa8e365dd65ece0fd5c.css" integrity="sha256-FmVpC7qO2bNSXCOHqxYnFG&#43;1l3&#43;C5&#43;&#43;o42XdZezg/Vw=" rel="preload stylesheet" as="style">
+<link rel="icon" href="http://localhost:1313/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="http://localhost:1313/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="http://localhost:1313/favicon-32x32.png">
+<link rel="apple-touch-icon" href="http://localhost:1313/apple-touch-icon.png">
+<link rel="mask-icon" href="http://localhost:1313/safari-pinned-tab.svg">
+<meta name="theme-color" content="#2e2e33">
+<meta name="msapplication-TileColor" content="#2e2e33">
+<link rel="alternate" hreflang="en" href="http://localhost:1313/posts/access_control/">
+<noscript>
+    <style>
+        #theme-toggle,
+        .top-link {
+            display: none;
+        }
+
+    </style>
+</noscript>
+<script>
+    if (localStorage.getItem("pref-theme") === "light") {
+        document.querySelector("html").dataset.theme = 'light';
+    }
+
+</script>
+</head>
+<body id="top">
+    <header class="header">
+    <nav class="header-nav">
+        <div class="logo">
+            <a href="http://localhost:1313/" accesskey="h" title="GaDaK-H1 (Alt + H)">
+                <img src="http://localhost:1313/favicon.ico" alt="" aria-label="logo"
+                    height="30">GaDaK-H1</a>
+            <div class="logo-switches">
+                <button id="theme-toggle" class="theme-toggle" accesskey="t" title="(Alt + T)" aria-label="Toggle theme">
+                    <svg class="moon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg class="sun" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <ul id="menu" class="menu">
+            <li>
+                <a href="http://localhost:1313/posts/" title="Writeups">
+                    <span>Writeups</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/payloads/" title="Payloads">
+                    <span>Payloads</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/categories/" title="Categories">
+                    <span>Categories</span>
+                </a>
+            </li>
+            <li>
+                <a href="http://localhost:1313/tags/" title="Tags">
+                    <span>Tags</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</header>
+<main class="main">
+
+<article class="post-single">
+  <header class="post-header">
+    <nav class="breadcrumbs" role="navigation" aria-label="Breadcrumb">
+            <a href="/">Home</a>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+            <a href="/posts/">Posts</a>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right">
+        <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+</nav>
+    <h1 class="post-title entry-hint-parent">
+      Broken Access Control
+    </h1>
+    <div class="post-description">
+      Theory, testing methodology, and common attack techniques for Broken Access Control.
+    </div>
+    <div class="post-meta">
+
+<span title='2026-05-04 00:00:00 +0000 UTC'>May 4, 2026</span>&nbsp;·&nbsp;<span>4 min</span>
+
+</div>
+  </header> <details class="toc" >
+    <summary accesskey="c" title="(Alt + C)">
+        <span class="title">Table of Contents</span>
+    </summary>
+
+    <div class="inner"><ul>
+            <li>
+                <a href="#broken-access-control" aria-label="Broken Access Control">Broken Access Control</a></li>
+            <li>
+                <a href="#authentication-vs-authorization" aria-label="Authentication Vs Authorization">Authentication Vs Authorization</a></li>
+            <li>
+                <a href="#a012025-broken-access-control-sample-codes-scenarioes" aria-label="A01:2025 Broken Access Control Sample Codes scenarioes">A01:2025 Broken Access Control Sample Codes scenarioes</a></li>
+            <li>
+                <a href="#attacking-technique" aria-label="Attacking Technique">Attacking Technique</a></li>
+            <li>
+                <a href="#tooling" aria-label="Tooling">Tooling</a></li>
+            <li>
+                <a href="#portswigger-acces-control-labs" aria-label="Portswigger Acces Control Labs">Portswigger Acces Control Labs</a></li>
+            <li>
+                <a href="#lab-unprotected-admin-functionality" aria-label="Lab: Unprotected admin functionality">Lab: Unprotected admin functionality</a></li>
+            <li>
+                <a href="#lab-unprotected-admin-functionality-with-unpredictable-url" aria-label="Lab: Unprotected admin functionality with unpredictable URL">Lab: Unprotected admin functionality with unpredictable URL</a></li>
+            <li>
+                <a href="#lab-user-role-controlled-by-request-parameter" aria-label="Lab: User role controlled by request parameter">Lab: User role controlled by request parameter</a>
+            </li>
+        </ul>
+    </div>
+</details>
+
+  <div class="post-content md-content"><h1 id="broken-access-control">Broken Access Control<a hidden class="anchor" aria-hidden="true" href="#broken-access-control">#</a></h1>
+<p>Description.</p>
+<p>Access control enforces policy such that users cannot act outside of their intended permissions. Failures typically lead to unauthorized information disclosure, modification or destruction of all data, or performing a business function outside the user&rsquo;s limits.</p>
+<h1 id="authentication-vs-authorization">Authentication Vs Authorization<a hidden class="anchor" aria-hidden="true" href="#authentication-vs-authorization">#</a></h1>
+<p>Authenticatoin is verifying a user&rsquo;s identity – typically through passwords, biometrics, multi-factor authentication, or tokens. Authentication happens before authorization and establishes a session or identity context.</p>
+<p>Authorization is determining which resources, actions, and data you are permitted to access.</p>
+<h1 id="a012025-broken-access-control-sample-codes-scenarioes">A01:2025 Broken Access Control Sample Codes scenarioes<a hidden class="anchor" aria-hidden="true" href="#a012025-broken-access-control-sample-codes-scenarioes">#</a></h1>
+<p>The following scenarios are taken directly from the OWASP Top 10:2025 documentation. They illustrate how broken access control manifests in real-world applications.</p>
+<p>Scenario #1: The application uses unverified data in an SQL call that is accessing account information:</p>
+<p>Java_Sample_Code :</p>
+<p><code>pstmt.setString(1, request.getParameter(&quot;acct&quot;)); ResultSet results = pstmt.executeQuery( );</code></p>
+<p>An attacker can simply modify the browser&rsquo;s &lsquo;acct&rsquo; parameter to send any desired account number. If not correctly verified, the attacker can access any user&rsquo;s account.</p>
+<p><a href="https://example.com/app/accountInfo?acct=notmyacct">https://example.com/app/accountInfo?acct=notmyacct</a></p>
+<p>Scenario #2: An attacker simply forces browsers to target URLs. Admin rights are required for access to the admin page.</p>
+<p><a href="https://example.com/app/getappInfo">https://example.com/app/getappInfo</a></p>
+<p><a href="https://example.com/app/admin_getappInfo">https://example.com/app/admin_getappInfo</a></p>
+<p>If an unauthenticated user can access either page, it&rsquo;s a flaw. If a non-admin can access the admin page, this is a flaw.</p>
+<p>Scenario #3: An application puts all of their access control in their front-end. While the attacker cannot get to <a href="https://example.com/app/admin_getappInfo">https://example.com/app/admin_getappInfo</a> due to JavaScript code running in the browser, they can simply execute:</p>
+<p>$ curl <a href="https://example.com/app/admin_getappInfo">https://example.com/app/admin_getappInfo</a></p>
+<p>from the command line.</p>
+<h1 id="attacking-technique">Attacking Technique<a hidden class="anchor" aria-hidden="true" href="#attacking-technique">#</a></h1>
+<p>Look for parameters that reference an object:</p>
+<p>Path: /api/user/1234, /files/550e8400-e29b-41d4-a716-446655440000 // fuzzing and change the file path, changing value 1234</p>
+<p>Query: ?id=42, ?invoice=2024-00001 // try to change the value behind parameter</p>
+<p>Body / JSON: {&ldquo;user_id&rdquo;: 321, &ldquo;order_id&rdquo;: 987} // explore json data</p>
+<p>Headers / Cookies: X-Client-ID: 4711 // identifying the Headers &amp; Cookies</p>
+<p>Prefer endpoints that read or update data (GET, PUT, PATCH, DELETE).</p>
+<h1 id="tooling">Tooling<a hidden class="anchor" aria-hidden="true" href="#tooling">#</a></h1>
+<p>BurpSuite extensions: Authorize, Auto Repeater, Turbo Intruder.</p>
+<p>OWASP ZAP: Auth Matrix, Forced Browse.</p>
+<p>Github projects: bwapp-idor-scanner, Blindy (bulk IDOR hunting).</p>
+<h1 id="portswigger-acces-control-labs">Portswigger Acces Control Labs<a hidden class="anchor" aria-hidden="true" href="#portswigger-acces-control-labs">#</a></h1>
+<h1 id="lab-unprotected-admin-functionality">Lab: Unprotected admin functionality<a hidden class="anchor" aria-hidden="true" href="#lab-unprotected-admin-functionality">#</a></h1>
+<p>This lab has an unprotected admin panel.Solve the lab by deleting the user carlos.</p>
+<p>Explotation :</p>
+<p>We can identify the /robots.txt in the target url to know about which paths are allowed and disallowed.</p>
+<p><img alt="Disallowed paths in robots.txt" loading="lazy" src="/images/access-control/Lab1.png"></p>
+<p>The file reveals the hidden <code>/administrator-panel</code> endpoint.</p>
+<p>Tip:</p>
+<p>Many web servers contain a file named robots.txt in the web root that
+contains a list of URLs that the site does not want web spiders to visit or search
+engines to index. Sometimes, this file contains references to sensitive
+functionality, which you are certainly interested in spidering. Some spidering tools
+designed for attacking web applications check for the robots.txt file and use
+all URLs within it as seeds in the spidering process. In this case, the robots.txt
+file may be counterproductive to the security of the web application.</p>
+<p>Also we can fuzzing the file path with gobuster which can be use in kali linux.</p>
+<p>We will use SecLists (<a href="https://github.com/danielmiessler/seclists">https://github.com/danielmiessler/seclists</a>) as our wordlists. Installation can be view on its github page.</p>
+<p>gobuster dir -u http://lab_URL -w /usr/share/wordlists/seclists/Discovery/Web
+Content/common.txt</p>
+<p><img alt="Directory fuzzing" loading="lazy" src="/images/access-control/Lab1-gobuster.png"></p>
+<p>change http://lab_URL into actual lab url and try it as automation.</p>
+<h1 id="lab-unprotected-admin-functionality-with-unpredictable-url">Lab: Unprotected admin functionality with unpredictable URL<a hidden class="anchor" aria-hidden="true" href="#lab-unprotected-admin-functionality-with-unpredictable-url">#</a></h1>
+<p>This lab has an unprotected admin panel. It&rsquo;s located at an unpredictable location, but the location is disclosed somewhere in the application.</p>
+<p>Solve the lab by accessing the admin panel, and using it to delete the user carlos.</p>
+<p>Explotation :</p>
+<p>Try to look for Javascript codes in view-page-source.</p>
+<p><img alt="View-Page-Source" loading="lazy" src="/images/access-control/Lab2.png"></p>
+<p>The Javascript codes reveal the file path of administrator.</p>
+<h1 id="lab-user-role-controlled-by-request-parameter">Lab: User role controlled by request parameter<a hidden class="anchor" aria-hidden="true" href="#lab-user-role-controlled-by-request-parameter">#</a></h1>
+<p>This lab has an admin panel at /admin, which identifies administrators using a forgeable cookie.</p>
+<p>Solve the lab by accessing the admin panel and using it to delete the user carlos.</p>
+<p>You can log in to your own account using the following credentials: wiener:peter</p>
+<p>Analysis :</p>
+<p>We have give credentials: <code>wiener:peter</code></p>
+<p>Use it and analysis the login request.</p>
+<p><img alt="Analysis-The-Request" loading="lazy" src="/images/access-control/burp.png"></p>
+<p>We can see there is a session cookie + Admin = false which is really weird.</p>
+<p>What will happen if we change the Admin = true ?</p>
+<p>Explotation :</p>
+<p><img alt="Admin-ture" loading="lazy" src="/images/access-control/Admin.png"></p>
+<p>We can see Admin Panel when we fix the value of Admin = true</p>
+<p>So we can consider session cookie is just to control users and for administrator it is control by Admin = value</p>
+<p>We can delete the carlos user to solve the lab.</p>
+
+
+  </div>
+
+  <footer class="post-footer">
+    <ul class="post-tags">
+      <li><a href="http://localhost:1313/tags/access-control/">Access-Control</a></li>
+    </ul>
+
+
+<ul class="share-buttons">
+    <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="share Broken Access Control on x"
+            href="https://x.com/intent/tweet/?text=Broken%20Access%20Control&amp;url=http%3a%2f%2flocalhost%3a1313%2fposts%2faccess_control%2f&amp;hashtags=access-control">
+            <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve" height="30px" width="30px" fill="currentColor">
+                <path
+                    d="M512 62.554 L 512 449.446 C 512 483.97 483.97 512 449.446 512 L 62.554 512 C 28.03 512 0 483.97 0 449.446 L 0 62.554 C 0 28.03 28.029 0 62.554 0 L 449.446 0 C 483.971 0 512 28.03 512 62.554 Z M 269.951 190.75 L 182.567 75.216 L 56 75.216 L 207.216 272.95 L 63.9 436.783 L 125.266 436.783 L 235.9 310.383 L 332.567 436.783 L 456 436.783 L 298.367 228.367 L 432.367 75.216 L 371.033 75.216 Z M 127.633 110 L 164.101 110 L 383.481 400.065 L 349.5 400.065 Z" />
+            </svg>
+        </a>
+    </li>
+    <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="share Broken Access Control on linkedin"
+            href="https://www.linkedin.com/shareArticle?mini=true&amp;url=http%3a%2f%2flocalhost%3a1313%2fposts%2faccess_control%2f&amp;title=Broken%20Access%20Control&amp;summary=Broken%20Access%20Control&amp;source=http%3a%2f%2flocalhost%3a1313%2fposts%2faccess_control%2f">
+            <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve" height="30px" width="30px" fill="currentColor">
+                <path
+                    d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-288.985,423.278l0,-225.717l-75.04,0l0,225.717l75.04,0Zm270.539,0l0,-129.439c0,-69.333 -37.018,-101.586 -86.381,-101.586c-39.804,0 -57.634,21.891 -67.617,37.266l0,-31.958l-75.021,0c0.995,21.181 0,225.717 0,225.717l75.02,0l0,-126.056c0,-6.748 0.486,-13.492 2.474,-18.315c5.414,-13.475 17.767,-27.434 38.494,-27.434c27.135,0 38.007,20.707 38.007,51.037l0,120.768l75.024,0Zm-307.552,-334.556c-25.674,0 -42.448,16.879 -42.448,39.002c0,21.658 16.264,39.002 41.455,39.002l0.484,0c26.165,0 42.452,-17.344 42.452,-39.002c-0.485,-22.092 -16.241,-38.954 -41.943,-39.002Z" />
+            </svg>
+        </a>
+    </li>
+    <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="share Broken Access Control on reddit"
+            href="https://reddit.com/submit?url=http%3a%2f%2flocalhost%3a1313%2fposts%2faccess_control%2f&title=Broken%20Access%20Control">
+            <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve" height="30px" width="30px" fill="currentColor">
+                <path
+                    d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-3.446,265.638c0,-22.964 -18.616,-41.58 -41.58,-41.58c-11.211,0 -21.361,4.457 -28.841,11.666c-28.424,-20.508 -67.586,-33.757 -111.204,-35.278l18.941,-89.121l61.884,13.157c0.756,15.734 13.642,28.29 29.56,28.29c16.407,0 29.706,-13.299 29.706,-29.701c0,-16.403 -13.299,-29.702 -29.706,-29.702c-11.666,0 -21.657,6.792 -26.515,16.578l-69.105,-14.69c-1.922,-0.418 -3.939,-0.042 -5.585,1.036c-1.658,1.073 -2.811,2.761 -3.224,4.686l-21.152,99.438c-44.258,1.228 -84.046,14.494 -112.837,35.232c-7.468,-7.164 -17.589,-11.591 -28.757,-11.591c-22.965,0 -41.585,18.616 -41.585,41.58c0,16.896 10.095,31.41 24.568,37.918c-0.639,4.135 -0.99,8.328 -0.99,12.576c0,63.977 74.469,115.836 166.33,115.836c91.861,0 166.334,-51.859 166.334,-115.836c0,-4.218 -0.347,-8.387 -0.977,-12.493c14.564,-6.47 24.735,-21.034 24.735,-38.001Zm-119.474,108.193c-20.27,20.241 -59.115,21.816 -70.534,21.816c-11.428,0 -50.277,-1.575 -70.522,-21.82c-3.007,-3.008 -3.007,-7.882 0,-10.889c3.003,-2.999 7.882,-3.003 10.885,0c12.777,12.781 40.11,17.317 59.637,17.317c19.522,0 46.86,-4.536 59.657,-17.321c3.016,-2.999 7.886,-2.995 10.885,0.008c3.008,3.011 3.003,7.882 -0.008,10.889Zm-5.23,-48.781c-16.373,0 -29.701,-13.324 -29.701,-29.698c0,-16.381 13.328,-29.714 29.701,-29.714c16.378,0 29.706,13.333 29.706,29.714c0,16.374 -13.328,29.698 -29.706,29.698Zm-160.386,-29.702c0,-16.381 13.328,-29.71 29.714,-29.71c16.369,0 29.689,13.329 29.689,29.71c0,16.373 -13.32,29.693 -29.689,29.693c-16.386,0 -29.714,-13.32 -29.714,-29.693Z" />
+            </svg>
+        </a>
+    </li>
+    <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="share Broken Access Control on facebook"
+            href="https://facebook.com/sharer/sharer.php?u=http%3a%2f%2flocalhost%3a1313%2fposts%2faccess_control%2f">
+            <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve" height="30px" width="30px" fill="currentColor">
+                <path
+                    d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-106.468,0l0,-192.915l66.6,0l12.672,-82.621l-79.272,0l0,-53.617c0,-22.603 11.073,-44.636 46.58,-44.636l36.042,0l0,-70.34c0,0 -32.71,-5.582 -63.982,-5.582c-65.288,0 -107.96,39.569 -107.96,111.204l0,62.971l-72.573,0l0,82.621l72.573,0l0,192.915l-191.104,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Z" />
+            </svg>
+        </a>
+    </li>
+    <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="share Broken Access Control on whatsapp"
+            href="https://api.whatsapp.com/send?text=Broken%20Access%20Control%20-%20http%3a%2f%2flocalhost%3a1313%2fposts%2faccess_control%2f">
+            <svg version="1.1" viewBox="0 0 512 512" xml:space="preserve" height="30px" width="30px" fill="currentColor">
+                <path
+                    d="M449.446,0c34.525,0 62.554,28.03 62.554,62.554l0,386.892c0,34.524 -28.03,62.554 -62.554,62.554l-386.892,0c-34.524,0 -62.554,-28.03 -62.554,-62.554l0,-386.892c0,-34.524 28.029,-62.554 62.554,-62.554l386.892,0Zm-58.673,127.703c-33.842,-33.881 -78.847,-52.548 -126.798,-52.568c-98.799,0 -179.21,80.405 -179.249,179.234c-0.013,31.593 8.241,62.428 23.927,89.612l-25.429,92.884l95.021,-24.925c26.181,14.28 55.659,21.807 85.658,21.816l0.074,0c98.789,0 179.206,-80.413 179.247,-179.243c0.018,-47.895 -18.61,-92.93 -52.451,-126.81Zm-126.797,275.782l-0.06,0c-26.734,-0.01 -52.954,-7.193 -75.828,-20.767l-5.441,-3.229l-56.386,14.792l15.05,-54.977l-3.542,-5.637c-14.913,-23.72 -22.791,-51.136 -22.779,-79.287c0.033,-82.142 66.867,-148.971 149.046,-148.971c39.793,0.014 77.199,15.531 105.329,43.692c28.128,28.16 43.609,65.592 43.594,105.4c-0.034,82.149 -66.866,148.983 -148.983,148.984Zm81.721,-111.581c-4.479,-2.242 -26.499,-13.075 -30.604,-14.571c-4.105,-1.495 -7.091,-2.241 -10.077,2.241c-2.986,4.483 -11.569,14.572 -14.182,17.562c-2.612,2.988 -5.225,3.364 -9.703,1.12c-4.479,-2.241 -18.91,-6.97 -36.017,-22.23c-13.314,-11.876 -22.304,-26.542 -24.916,-31.026c-2.612,-4.484 -0.279,-6.908 1.963,-9.14c2.016,-2.007 4.48,-5.232 6.719,-7.847c2.24,-2.615 2.986,-4.484 4.479,-7.472c1.493,-2.99 0.747,-5.604 -0.374,-7.846c-1.119,-2.241 -10.077,-24.288 -13.809,-33.256c-3.635,-8.733 -7.327,-7.55 -10.077,-7.688c-2.609,-0.13 -5.598,-0.158 -8.583,-0.158c-2.986,0 -7.839,1.121 -11.944,5.604c-4.105,4.484 -15.675,15.32 -15.675,37.364c0,22.046 16.048,43.342 18.287,46.332c2.24,2.99 31.582,48.227 76.511,67.627c10.685,4.615 19.028,7.371 25.533,9.434c10.728,3.41 20.492,2.929 28.209,1.775c8.605,-1.285 26.499,-10.833 30.231,-21.295c3.732,-10.464 3.732,-19.431 2.612,-21.298c-1.119,-1.869 -4.105,-2.99 -8.583,-5.232Z" />
+            </svg>
+        </a>
+    </li>
+    <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="share Broken Access Control on telegram"
+            href="https://telegram.me/share/url?text=Broken%20Access%20Control&amp;url=http%3a%2f%2flocalhost%3a1313%2fposts%2faccess_control%2f">
+            <svg version="1.1" xml:space="preserve" viewBox="2 2 28 28" height="30px" width="30px" fill="currentColor">
+                <path
+                    d="M26.49,29.86H5.5a3.37,3.37,0,0,1-2.47-1,3.35,3.35,0,0,1-1-2.47V5.48A3.36,3.36,0,0,1,3,3,3.37,3.37,0,0,1,5.5,2h21A3.38,3.38,0,0,1,29,3a3.36,3.36,0,0,1,1,2.46V26.37a3.35,3.35,0,0,1-1,2.47A3.38,3.38,0,0,1,26.49,29.86Zm-5.38-6.71a.79.79,0,0,0,.85-.66L24.73,9.24a.55.55,0,0,0-.18-.46.62.62,0,0,0-.41-.17q-.08,0-16.53,6.11a.59.59,0,0,0-.41.59.57.57,0,0,0,.43.52l4,1.24,1.61,4.83a.62.62,0,0,0,.63.43.56.56,0,0,0,.4-.17L16.54,20l4.09,3A.9.9,0,0,0,21.11,23.15ZM13.8,20.71l-1.21-4q8.72-5.55,8.78-5.55c.15,0,.23,0,.23.16a.18.18,0,0,1,0,.06s-2.51,2.3-7.52,6.8Z" />
+            </svg>
+        </a>
+    </li>
+    <li>
+        <a target="_blank" rel="noopener noreferrer" aria-label="share Broken Access Control on ycombinator"
+            href="https://news.ycombinator.com/submitlink?t=Broken%20Access%20Control&u=http%3a%2f%2flocalhost%3a1313%2fposts%2faccess_control%2f">
+            <svg version="1.1" xml:space="preserve" width="30px" height="30px" viewBox="0 0 512 512" fill="currentColor"
+                xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape">
+                <path
+                    d="M449.446 0C483.971 0 512 28.03 512 62.554L512 449.446C512 483.97 483.97 512 449.446 512L62.554 512C28.03 512 0 483.97 0 449.446L0 62.554C0 28.03 28.029 0 62.554 0L449.446 0ZM183.8767 87.9921H121.8427L230.6673 292.4508V424.0079H281.3328V292.4508L390.1575 87.9921H328.1233L256 238.2489z" />
+            </svg>
+        </a>
+    </li>
+</ul>
+
+  </footer>
+</article>
+    </main>
+    
+<footer class="footer">
+        <span>&copy; 2026 <a href="http://localhost:1313/">GaDaK-H1 Pentest Notes</a></span> · 
+
+    
+    
+    <span>
+        Powered by
+        <a href="https://gohugo.io/?utm_source=papermod" rel="noopener" target="_blank">Hugo</a> &
+        <a href="https://github.com/adityatelange/hugo-PaperMod/" rel="noopener" target="_blank">PaperMod</a>
+    </span>
+</footer>
+<a href="#top" id="top-link" class="top-link hidden" aria-label="go to top" title="Go to Top (Alt + G)" accesskey="g">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevrons-up">
+        <polyline points="17 11 12 6 7 11"></polyline>
+        <polyline points="17 18 12 13 7 18"></polyline>
+    </svg>
+</a>
+
+<script>
+    let menu = document.getElementById('menu');
+    if (menu) {
+        
+        const scrollPosition = localStorage.getItem("menu-scroll-position");
+        if (scrollPosition) {
+            menu.scrollLeft = parseInt(scrollPosition, 10);
+        }
+        
+        menu.onscroll = function () {
+            localStorage.setItem("menu-scroll-position", menu.scrollLeft);
+        }
+    }
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = this.getAttribute("href").substr(1);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView({
+                    behavior: "smooth"
+                });
+            } else {
+                document.querySelector(`[id='${decodeURIComponent(id)}']`).scrollIntoView();
+            }
+            if (id === "top") {
+                history.replaceState(null, null, " ");
+            } else {
+                history.pushState(null, null, `#${id}`);
+            }
+        });
+    });
+
+</script>
+<script>
+    var toplink = document.getElementById("top-link");
+    window.onscroll = function () {
+        const scrollThreshold = window.innerHeight;
+        if (document.body.scrollTop > scrollThreshold || document.documentElement.scrollTop > scrollThreshold) {
+            toplink.classList.remove("hidden");
+        } else {
+            toplink.classList.add("hidden");
+        }
+    };
+
+</script>
+<script>
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+        const html = document.querySelector("html");
+        if (html.dataset.theme === "dark") {
+            html.dataset.theme = 'light';
+            localStorage.setItem("pref-theme", 'light');
+        } else {
+            html.dataset.theme = 'dark';
+            localStorage.setItem("pref-theme", 'dark');
+        }
+    })
+
+</script>
+<script>
+    document.querySelectorAll('pre > code').forEach((codeblock) => {
+        const container = codeblock.parentNode.parentNode;
+
+        const copybutton = document.createElement('button');
+        copybutton.classList.add('copy-code');
+        copybutton.innerHTML = 'copy';
+
+        function copyingDone() {
+            copybutton.innerHTML = 'copied!';
+            setTimeout(() => {
+                copybutton.innerHTML = 'copy';
+            }, 2000);
+        }
+
+        copybutton.addEventListener('click', (cb) => {
+            if ('clipboard' in navigator) {
+                navigator.clipboard.writeText(codeblock.textContent);
+                copyingDone();
+                return;
+            }
+
+            const range = document.createRange();
+            range.selectNodeContents(codeblock);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            try {
+                document.execCommand('copy');
+                copyingDone();
+            } catch (e) { };
+            selection.removeRange(range);
+        });
+
+        if (container.classList.contains("highlight")) {
+            container.appendChild(copybutton);
+        } else if (container.parentNode.firstChild == container) {
+            
+        } else if (codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.nodeName == "TABLE") {
+            
+            codeblock.parentNode.parentNode.parentNode.parentNode.parentNode.appendChild(copybutton);
+        } else {
+            
+            codeblock.parentNode.appendChild(copybutton);
+        }
+    });
+</script>
+</body>
+
+</html>

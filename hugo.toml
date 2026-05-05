@@ -1,0 +1,53 @@
+baseURL = 'https://gadak-h1.github.io/'
+languageCode = 'en-us'
+title = 'GaDaK-H1 Pentest Notes'
+theme = 'PaperMod'
+
+[pagination]
+pagerSize = 10
+
+[taxonomies]
+tag = "tags"
+categories = "categories" 
+
+[params]
+ShowReadingTime = true
+ShowShareButtons = true
+ShowCodeCopyButtons = true
+ShowBreadCrumbs = true
+ShowPostNavLinks = true
+ShowToc = true
+defaultTheme = "dark"
+
+[params.label]
+text = "GaDaK-H1"
+icon = "favicon.ico"
+
+[params.homeInfoParams]
+Title = "GaDaK-H1"
+Content = "Writeups, payloads, notes, and pentesting methodology."
+
+[[menu.main]]
+identifier = "writeups"
+name = "Writeups"
+url = "/posts/"
+weight = 10
+
+[[menu.main]]
+identifier = "payloads"
+name = "Payloads"
+url = "/payloads/"
+weight = 20
+
+[[menu.main]]
+identifier = "categories"
+name = "Categories"
+url = "/categories/"
+weight = 30
+
+[[menu.main]]
+identifier = "tags"
+name = "Tags"
+url = "/tags/"
+weight = 40
+
