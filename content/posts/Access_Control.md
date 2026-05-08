@@ -3,7 +3,7 @@ title: "Broken Access Control"
 date: 2026-05-04
 draft: false
 
-description: "Theory, testing methodology, and common attack techniques for Broken Access Control."
+description: "Theory, testing methodology, write ups and common attack techniques for Broken Access Control."
 
 tags:
   - access-control
@@ -40,19 +40,19 @@ Java_Sample_Code :
 
 An attacker can simply modify the browser's 'acct' parameter to send any desired account number. If not correctly verified, the attacker can access any user's account.
 
-https://example.com/app/accountInfo?acct=notmyacct
+`https://example.com/app/accountInfo?acct=notmyacct`
 
 Scenario #2: An attacker simply forces browsers to target URLs. Admin rights are required for access to the admin page.
 
-https://example.com/app/getappInfo
+`https://example.com/app/getappInfo`
 
-https://example.com/app/admin_getappInfo
+`https://example.com/app/admin_getappInfo`
 
 If an unauthenticated user can access either page, it's a flaw. If a non-admin can access the admin page, this is a flaw.
 
 Scenario #3: An application puts all of their access control in their front-end. While the attacker cannot get to https://example.com/app/admin_getappInfo due to JavaScript code running in the browser, they can simply execute:
 
-$ curl https://example.com/app/admin_getappInfo
+`$ curl https://example.com/app/admin_getappInfo`
 
 from the command line.
 
@@ -110,8 +110,8 @@ Look for parameters that reference an object:
 
   We will use SecLists (https://github.com/danielmiessler/seclists) as our wordlists. Installation can be view on its github page. 
 
-  gobuster dir -u http://lab_URL -w /usr/share/wordlists/seclists/Discovery/Web
-  Content/common.txt
+  `gobuster dir -u http://lab_URL -w /usr/share/wordlists/seclists/Discovery/Web
+  Content/common.txt`
 
   
   ![Directory fuzzing](/images/access-control/Lab1-gobuster.png)
@@ -166,6 +166,123 @@ Look for parameters that reference an object:
   So we can consider session cookie is just to control users and for administrator it is control by Admin = value
 
   We can delete the carlos user to solve the lab. 
+
+ # Lab: User role can be modified in user profile
+
+  This lab has an admin panel at /admin. It's only accessible to logged-in users with a roleid of 2.
+
+  Solve the lab by accessing the admin panel and using it to delete the user carlos.
+
+  You can log in to your own account using the following credentials: wiener:peter.
+
+   Analysis :
+
+  We have give credentials: `wiener:peter` 
+
+  Use it and analysis the login request.
+
+  We can't do anything in client control like `?id=weiner` this to `?id=carlos` 
+
+  So let's analysis what we can do in user profile ?
+
+  ![Email-Change](/images/access-control/email.png)
+
+  There is an email change function & we notice that when we test it in burp repeater we can see the response is coming with json data format which also have `roleid:value` 
+
+  Exploit :
+
+  We exploit by changing roleid value to 2 and when we follow and redirection it works. The Adminpanel is shown.
+
+  ![Admin-Panel](/images/access-control/roleid.png)
+
+  Delete the carlos user & we solve the lab. 
+
+# Lab: User ID controlled by request parameter 
+
+  This lab has a horizontal privilege escalation vulnerability on the user account page.
+
+  To solve the lab, obtain the API key for the user carlos and submit it as the solution.
+
+  You can log in to your own account using the following credentials: wiener:peter 
+
+  Analysis : 
+
+  We have give credentials: `wiener:peter` 
+
+  Use it and analysis the login request.
+
+  In url we can see like this : https://0a4f004c0467b2ee818a20e000b800d7.web-security-academy.net/my-account?id=wiener
+
+  So as we mentioned above if we can change `?id=weiner` this to `?id=carlos`  what will be happen ?
+
+  Explotation : 
+
+  For this lab you can also solve from burp request or also can be solve form url.
+
+  ![Carlos-API](/images/access-control/carlos.png)
+
+  Just change `?id=carlos` and we can see we log in as carlos user and get API key. 
+
+# Lab: User ID controlled by request parameter, with unpredictable user IDs 
+
+  This lab has a horizontal privilege escalation vulnerability on the user account page, but identifies users with GUIDs.
+
+  To solve the lab, find the GUID for carlos, then submit his API key as the solution.
+
+  You can log in to your own account using the following credentials: wiener:peter 
+
+  Analysis : 
+
+  We have give credentials: `wiener:peter` 
+
+  Use it and analysis the login request.
+
+  This lab have as the same structure as above one but differnet is there is no such thing `?id=weiner`
+
+  Instead values are change to GUID which is 128 bit text string use to navigate the users. 
+
+  So what will we do instead ?
+
+  When we go to `view posts` posts are tag along with their users, from there can we find out GUID of each user.
+
+  Explotaion :
+
+  We can find posts of carlos user. Try to click his username which tag along with user profile and we can see there is carlos GUID. 
+
+  `https://0aa8001c049eab6785774ee2000700b4.web-security-academy.net/blogs?userId=8a202b10-ab46-4399-9902-dce6eea3529f`
+
+  ![GUID](/images/access-control/GUID.png) 
+
+  Try to change the GUID value in url or burp request as above `Lab: User ID controlled by request parameter` and we can get the carlos API key. 
+
+# Lab: User ID controlled by request parameter with data leakage in redirect 
+
+  This lab contains an access control vulnerability where sensitive information is leaked in the body of a redirect response.
+
+  To solve the lab, obtain the API key for the user carlos and submit it as the solution.
+
+  You can log in to your own account using the following credentials: wiener:peter 
+
+  Analysis :
+
+  We have given credentials: `wiener:peter` 
+
+  Use it and analysis the login request.
+
+  This lab have as the same structure as above one but the difference is if we change `?id=weiner` this to `?id=carlos` in URL 
+
+  the webiste is redirect to login page so how does we gonna do ? Let's examine this in burp 
+
+  Explotaion :
+
+  ![data-lekage](/images/access-control/lekage.png)
+
+  Try to intercept the login reuquest and in `GET /myaccount?id=weiner` try to change `?id=carlos`. After that  hit forward & we can see there is a hidden request or data-lekage about carlos profile before redirect like in actual url value changing.
+
+  When we `follow redirection` we will get back to login page that's why changing value in url doesn't work. 
+
+
+
 
 
 
