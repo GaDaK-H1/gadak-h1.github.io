@@ -11,6 +11,8 @@ tags:
 
 categories:
   - concepts
+  - Labs-Solution
+
 ---
 
 # Broken Access Control
@@ -35,8 +37,10 @@ Scenario #1: The application uses unverified data in an SQL call that is accessi
 
 Java_Sample_Code :
 
- `pstmt.setString(1, request.getParameter("acct"));
-  ResultSet results = pstmt.executeQuery( );`
+  ```
+  pstmt.setString(1, request.getParameter("acct"));
+  ResultSet results = pstmt.executeQuery( );
+  ```
 
 An attacker can simply modify the browser's 'acct' parameter to send any desired account number. If not correctly verified, the attacker can access any user's account.
 
@@ -280,6 +284,197 @@ Look for parameters that reference an object:
   Try to intercept the login reuquest and in `GET /myaccount?id=weiner` try to change `?id=carlos`. After that  hit forward & we can see there is a hidden request or data-lekage about carlos profile before redirect like in actual url value changing.
 
   When we `follow redirection` we will get back to login page that's why changing value in url doesn't work. 
+
+# Lab: URL-based access control can be circumvented
+
+  This website has an unauthenticated admin panel at /admin, but a front-end system has been configured to block external 
+
+  access to that path. However, the back-end application is built on a framework that supports the X-Original-URL header.
+
+  To solve the lab, access the admin panel and delete the user carlos. 
+
+  Analysis :
+
+  When we analysis the applicatio url with /admin there is Access denied.
+
+  ![admin-panel](/images/access-control/admin-panel.PNG) 
+
+  So we will put `X-Original-URL` header 
+
+  and will try to bypass that 
+
+  Explotation : 
+
+  We will try to intercept the url of /admin request with burp.
+
+  ![intercept](/images/access-control/intercept-admin.PNG) 
+
+  And try to put `X-Original-URL: /admin` in that request. we can see the file path of carlos user account delete.
+  
+  ![intercept](/images/access-control/Xoriginal.PNG)
+
+  By using that we will try to delete the carlos user.
+
+  Tip : we must use `X-Original-URL: /admin/delete` & `GET /?username=carlos` because the server ban all path behind the 
+
+  admin and keyword admin behind request method such as `/admin/*` 
+
+  ![intercept](/images/access-control/deleted.PNG)
+
+  We can see 302 request and the carlos user is successfully deleted when we get back to browser.
+
+# Lab: User ID controlled by request parameter with password disclosure
+
+  This lab has a horizontal privilege escalation vulnerability where the user account page reveals the current password in a masked input field.
+
+  Analysis :
+
+  We have given credentials: `wiener:peter`
+
+  Use it and analyze the login request. The “My Account” page URL contains an id parameter:
+
+  `https://lab-id.web-security-academy.net/my-account?id=wiener`
+
+  ![password](/images/access-control/password.PNG)
+
+  The page source shows a password field with the value attribute containing the actual password (masked only in the UI).
+
+  What happens if we change id=wiener to id=administrator ?
+
+  Exploitation :
+
+  Intercept the request to /my-account?id=wiener and change the parameter:
+
+  GET /my-account?id=administrator
+
+  Forward the request and examine the HTML response. Look for the password field:
+
+  `<input type="password" name="password" value="[actual_password]">`
+
+  ![admin-password](/images/access-control/AdminPassword.PNG)
+
+  Copy the administrator's password. Log out, then log in as administrator with that password. Navigate to the admin panel and delete the user carlos.
+
+# Lab: Insecure direct object references
+
+  This lab stores user chat logs as static files with predictable numeric filenames, allowing IDOR to any user's transcript.
+
+  Analysis :
+
+  We have given credentials: wiener:peter
+
+  Log in and use the live chat feature. Send a few messages, then download the chat transcript. Observe the downloaded filename:
+
+  2.txt or similar
+
+  ![three](/images/access-control/three.PNG)
+
+  The file naming appears sequential (2.txt, 4.txt, 3.txt…). The first transcript created on the server belongs to another user.
+
+  Exploitation :
+
+  Intercept the transcript download request in Burp Suite:
+
+  GET /download-transcript/2.txt
+
+  Change the number to 1.txt:
+
+  GET /download-transcript/1.txt
+
+  ![one](/images/access-control/one.PNG)
+
+  Send the request. The response contains Carlos’s chat transcript, which includes his password in plaintext.
+
+# Lab: Method-based access control can be circumvented
+  
+  The application enforces access control for POST requests to admin functionality but fails to protect the same functionality when accessed via GET.
+
+  Analysis :
+
+  Log in as administrator:admin. Use the admin panel to promote a user (e.g., carlos to admin). Capture the request in Burp:
+
+  ![cookieAnalysis](/images/access-control/cookieAnalysis.PNG)
+
+  What if we can change the clinet control values like `carlos` to `wiener` & 
+
+  session=`wiener-cookie` ? Send this request to repeater & now log in as wiener:peter in a separate browser and copy wiener's session cookie.
+
+  Exploitation :
+
+  Replace the admin session cookie in Repeater with wiener's session cookie. Change username to wiener. Send the POST request – get "Unauthorized".
+
+  Now change the method from POST to GET by using change request method in burp and move parameters to the URL:
+
+  ![wiener-cookie](/images/access-control/wiener.PNG)
+
+  GET /admin-roles?username=`wiener`&action=upgrade HTTP/1.1
+  
+  Cookie: session=`wiener-session-cookie`
+  
+  Send the request. Success – wiener is now an administrator. 
+
+# Lab: Multi-step process with no access control on one step
+  
+  The admin panel uses a multi-step process for role changes. The final confirmation step lacks any access control check.
+
+  Analysis :
+
+  Log in as `administrator:admin`. Navigate to the admin panel and start the role change process. Intercept every request.
+
+  There is two requests in the process of chainging roles.
+
+  Identify the final confirmation request (e.g., POST /admin-roles). Send it to Repeater.
+
+  Log in as `wiener:peter` . Copy wiener's session cookie.
+
+  Exploitation :
+
+  Paste wiener's session cookie into the Repeater final confirmation request. 
+
+  Change the username parameter to `wiener` and keep `action=upgrade`.
+
+  Send the request.
+
+  ![second-request](/images/access-control/secondReq.PNG)
+
+  The confirmation endpoint accepts and processes the request – even though wiener never visited the first step. wiener becomes an administrator.
+
+# Lab: Referer-based access control
+  
+  The application checks the HTTP Referer header to decide if a request is authorized. If the Referer points to an admin page, access is granted.
+
+  Analysis :
+
+  Log in as `administrator:admin`. 
+  Capture a request to change user roles eg. ( GET /admin-roles?username=carlos&action=upgrade ). 
+
+  Note that the request includes a Referer: `https://lab-id.web-security-academy.net/admin` header.
+
+  Refer-header means- an HTTP request header that tells a web server which URL a user has come from, identifying the source page that linked to the currently requested resource
+  
+  Exploitation :
+
+  Copy wiener's session cookie into the captured admin request (already contains the admin Referer). 
+
+  Change username to `wiener` and send the request follow redirection in burp.
+
+  ![Ref](/images/access-control/Ref.PNG)
+
+  The application sees the Referer header pointing to /admin and incorrectly authorizes the request. 
+  `wiener` is promoted to administrator.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
