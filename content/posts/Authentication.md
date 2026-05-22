@@ -121,7 +121,7 @@ categories:
   This lab is vulnerable to username enumeration and password brute‑force attacks, but the difference in responses is very subtle.
   Solve the lab by enumerating a valid username, brute‑forcing the password, and accessing the account page.
 
-  Analysis : 
+  ***Analysis*** : 
 
   Navigate to the login page and submit an arbitrary username/password.
 
@@ -129,7 +129,7 @@ categories:
 
   We will try to bruteforce base on this response we doesn't know is there any logic error or not.
 
-  Exploitation :
+  ***Exploitation*** :
 
   Use ffuf to enumerate a valid username by filtering out all responses that contain that exact phrase:
 
@@ -155,3 +155,117 @@ categories:
        -d "username=[username-You-Get-above]&password=FUZZ" \
        -fr "Invalid password"
   ```
+
+
+  ## Lab: 2FA simple bypass
+
+  This lab’s two‑factor authentication can be trivially bypassed. You have already obtained a valid username and password `carlos:montoya` but do not have access to the user’s 2FA verification code.
+  Solve the lab by accessing the admin panel and deleting the user carlos.
+
+  ***Analysis*** :
+  
+  After supplying the correct credentials, the application redirects and asks for a 4‑digit security code. 
+  
+  No other verification takes place – if we can simply skip the second step and request a protected page directly, the session is already considered unauthenticated.
+
+  ***Explotation*** :
+
+  We will use BurpSuite to catch the Log in as carlos:montoya request. Drop the request of 2FA  authentication.
+
+  ![2FA](/images/authentication/2FAdrop.PNG)
+
+  And let's see what will be happen when we visit back to /my-account page.
+
+  ![2FA](/images/authentication/2FAmyaccount.PNG)
+
+  We can see there is login without require the mfa code.
+
+  ## Lab: Password reset broken logic
+
+  This lab’s password reset functionality is flawed. You have credentials for a normal user (wiener:peter). Exploit the broken logic to reset the password of the user carlos, then log in and access his account page.
+
+  ***Analysis***
+
+  The reset flow  asks for a username, then sends a reset link to that user’s registered email.
+
+  The link contains a password reset token which we will try to abuse.
+
+  ***Explotation*** :
+
+  Log in as `wiener:peter` and start the password reset process. Take the reset link form our email and catch the request of password-reset
+  function. We can see there is password reset token and also paramters for changing username, new passwords etc.
+
+  ![reset](/images/authentication/reset1.PNG)
+
+  When we change the username parameter to `carlos` it redirects and password reset works. So we can consdier the token can be reused.
+
+  ![reset](/images/authentication/reset2.PNG)
+
+  ## Lab: Username enumeration via response timing
+
+  This lab is vulnerable to username enumeration through response timing. Due to a subtle back‑end delay, requests with a valid username take slightly longer.
+  Solve the lab by identifying a valid username, brute‑forcing its password, and accessing the account page.
+
+  ***Analysis***
+
+  The applcation just allow 3 times attempts after that it will block user ip to wait 30 minutes.
+
+  We will use `X-Forwarded-For` header to bypass the login attempts.
+
+  Let's think with  a test case and try out 
+
+  Test case logic:
+
+  ```bash
+  If (username == false) {
+      // server immediately rejects, password not checked
+      return "Invalid username or password.";  // fast ~100ms
+  }
+  If (username == true && password == false) {
+      // server computes password length,hash,  takes longer
+      return "Invalid username or password.";  // slow ~500ms+
+  }
+  ```
+
+  Base on above test case logic we think , we will try out in burp for username enumeration first by increasing the password length.
+
+  ***Explotation*** :
+
+  Send the /POST login request of username & password to intruder and we will enumerating the usernames.
+
+  Mark the `X-Forwarded-For: $1$` & `username=$test$` in intruder. Choose Numbers (set 1 to 100) for `X-Forwarded-For: $1$` and for 
+  `username=$test$` choose simple list & use from the lab given username payloads.
+
+  Attack use with `PitchFork` & Change the concurrent thread pool to 1 instead of default thread in Resource pool.
+
+  ![time](/images/authentication/timeAuth1.PNG)
+
+  We look for timer different form Response receive and we saw one of the username is different which has 639.
+
+  ![time](/images/authentication/timeAuth2.PNG)
+
+  We use this username and enumerate the passwords as the previous process. Remember to change Numbers (set 101 to 200)
+
+  ![time](/images/authentication/timeAuth3.PNG)
+
+  We found there is 302 redirection and it works. We got usename and password.
+
+  You just need to login with that username and password.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
