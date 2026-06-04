@@ -89,7 +89,7 @@ Look for parameters that reference an object:
 
 ## Portswigger Acces Control Labs
 
-  ### Lab: Unprotected admin functionality
+  ## Lab: Unprotected admin functionality
 
   This lab has an unprotected admin panel.Solve the lab by deleting the user carlos. 
 
