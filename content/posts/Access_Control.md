@@ -11,6 +11,7 @@ tags:
 
 categories:
   - concepts
+  - web 
   - Labs-Solution
 
 ---
@@ -37,26 +38,26 @@ Scenario #1: The application uses unverified data in an SQL call that is accessi
 
 Java_Sample_Code :
 
-  ```
+  ```Java
   pstmt.setString(1, request.getParameter("acct"));
   ResultSet results = pstmt.executeQuery( );
   ```
 
 An attacker can simply modify the browser's 'acct' parameter to send any desired account number. If not correctly verified, the attacker can access any user's account.
 
-`https://example.com/app/accountInfo?acct=notmyacct`
+```https://example.com/app/accountInfo?acct=notmyacct```
 
 Scenario #2: An attacker simply forces browsers to target URLs. Admin rights are required for access to the admin page.
 
-`https://example.com/app/getappInfo`
+```https://example.com/app/getappInfo```
 
-`https://example.com/app/admin_getappInfo`
+```https://example.com/app/admin_getappInfo```
 
 If an unauthenticated user can access either page, it's a flaw. If a non-admin can access the admin page, this is a flaw.
 
 Scenario #3: An application puts all of their access control in their front-end. While the attacker cannot get to https://example.com/app/admin_getappInfo due to JavaScript code running in the browser, they can simply execute:
 
-`$ curl https://example.com/app/admin_getappInfo`
+```$ curl https://example.com/app/admin_getappInfo```
 
 from the command line.
 
@@ -65,15 +66,15 @@ from the command line.
 
 Look for parameters that reference an object:
 
- Path: /api/user/1234, /files/550e8400-e29b-41d4-a716-446655440000 // fuzzing and change the file path, changing value 1234
+ Path: ```/api/user/1234, /files/550e8400-e29b-41d4-a716-446655440000``` -> fuzzing and change the file path, changing value 1234
 
- Query: ?id=42, ?invoice=2024-00001 // try to change the value behind parameter 
+ Query: ```?id=42, ?invoice=2024-00001``` -> try to change the value behind parameter 
 
- Body / JSON: {"user_id": 321, "order_id": 987} // explore json data 
+ Body / JSON: ```{"user_id": 321, "order_id": 987}``` -> explore json data 
 
- Headers / Cookies: X-Client-ID: 4711 // identifying the Headers & Cookies 
+ Headers / Cookies: X-Client-ID: ```4711``` -> identifying the Headers & Cookies 
 
- Prefer endpoints that read or update data (GET, PUT, PATCH, DELETE).
+ Prefer endpoints that read or update data ```(GET, PUT, PATCH, DELETE)```.
 
  # Tooling
 
@@ -86,9 +87,9 @@ Look for parameters that reference an object:
 
 
 
-# Portswigger Acces Control Labs
+## Portswigger Acces Control Labs
 
-  # Lab: Unprotected admin functionality
+  ### Lab: Unprotected admin functionality
 
   This lab has an unprotected admin panel.Solve the lab by deleting the user carlos. 
 
@@ -114,17 +115,18 @@ Look for parameters that reference an object:
 
   We will use SecLists (https://github.com/danielmiessler/seclists) as our wordlists. Installation can be view on its github page. 
 
-  `gobuster dir -u http://lab_URL -w /usr/share/wordlists/seclists/Discovery/Web
-  Content/common.txt`
+  ```text
+  gobuster dir -u http://lab_URL -w /usr/share/wordlists/seclists/Discovery/Web
+  Content/common.txt
+  ```
 
-  
   ![Directory fuzzing](/images/access-control/Lab1-gobuster.png)
 
-   change http://lab_URL into actual lab url and try it as automation.
+  change `http://lab_URL` into actual lab url and try it as automation.
 
 
 
-  # Lab: Unprotected admin functionality with unpredictable URL
+  ## Lab: Unprotected admin functionality with unpredictable URL
 
   This lab has an unprotected admin panel. It's located at an unpredictable location, but the location is disclosed somewhere in the application.
 
@@ -140,14 +142,14 @@ Look for parameters that reference an object:
   The Javascript codes reveal the file path of administrator.
 
 
-  # Lab: User role controlled by request parameter
+  ## Lab: User role controlled by request parameter
 
 
   This lab has an admin panel at /admin, which identifies administrators using a forgeable cookie.
 
   Solve the lab by accessing the admin panel and using it to delete the user carlos.
 
-  You can log in to your own account using the following credentials: wiener:peter 
+  You can log in to your own account using the following credentials: `wiener:peter` 
 
   Analysis :
 
@@ -171,7 +173,7 @@ Look for parameters that reference an object:
 
   We can delete the carlos user to solve the lab. 
 
- # Lab: User role can be modified in user profile
+ ## Lab: User role can be modified in user profile
 
   This lab has an admin panel at /admin. It's only accessible to logged-in users with a roleid of 2.
 
@@ -201,7 +203,7 @@ Look for parameters that reference an object:
 
   Delete the carlos user & we solve the lab. 
 
-# Lab: User ID controlled by request parameter 
+## Lab: User ID controlled by request parameter 
 
   This lab has a horizontal privilege escalation vulnerability on the user account page.
 
@@ -227,7 +229,7 @@ Look for parameters that reference an object:
 
   Just change `?id=carlos` and we can see we log in as carlos user and get API key. 
 
-# Lab: User ID controlled by request parameter, with unpredictable user IDs 
+## Lab: User ID controlled by request parameter, with unpredictable user IDs 
 
   This lab has a horizontal privilege escalation vulnerability on the user account page, but identifies users with GUIDs.
 
@@ -259,7 +261,7 @@ Look for parameters that reference an object:
 
   Try to change the GUID value in url or burp request as above `Lab: User ID controlled by request parameter` and we can get the carlos API key. 
 
-# Lab: User ID controlled by request parameter with data leakage in redirect 
+## Lab: User ID controlled by request parameter with data leakage in redirect 
 
   This lab contains an access control vulnerability where sensitive information is leaked in the body of a redirect response.
 
@@ -285,9 +287,9 @@ Look for parameters that reference an object:
 
   When we `follow redirection` we will get back to login page that's why changing value in url doesn't work. 
 
-# Lab: URL-based access control can be circumvented
+## Lab: URL-based access control can be circumvented
 
-  This website has an unauthenticated admin panel at /admin, but a front-end system has been configured to block external 
+  This website has an unauthenticated admin panel at `/admin`, but a front-end system has been configured to block external 
 
   access to that path. However, the back-end application is built on a framework that supports the X-Original-URL header.
 
@@ -323,7 +325,7 @@ Look for parameters that reference an object:
 
   We can see 302 request and the carlos user is successfully deleted when we get back to browser.
 
-# Lab: User ID controlled by request parameter with password disclosure
+## Lab: User ID controlled by request parameter with password disclosure
 
   This lab has a horizontal privilege escalation vulnerability where the user account page reveals the current password in a masked input field.
 
@@ -355,7 +357,7 @@ Look for parameters that reference an object:
 
   Copy the administrator's password. Log out, then log in as administrator with that password. Navigate to the admin panel and delete the user carlos.
 
-# Lab: Insecure direct object references
+## Lab: Insecure direct object references
 
   This lab stores user chat logs as static files with predictable numeric filenames, allowing IDOR to any user's transcript.
 
@@ -385,7 +387,7 @@ Look for parameters that reference an object:
 
   Send the request. The response contains Carlos’s chat transcript, which includes his password in plaintext.
 
-# Lab: Method-based access control can be circumvented
+## Lab: Method-based access control can be circumvented
   
   The application enforces access control for POST requests to admin functionality but fails to protect the same functionality when accessed via GET.
 
@@ -413,7 +415,7 @@ Look for parameters that reference an object:
   
   Send the request. Success – wiener is now an administrator. 
 
-# Lab: Multi-step process with no access control on one step
+## Lab: Multi-step process with no access control on one step
   
   The admin panel uses a multi-step process for role changes. The final confirmation step lacks any access control check.
 
@@ -439,7 +441,7 @@ Look for parameters that reference an object:
 
   The confirmation endpoint accepts and processes the request – even though wiener never visited the first step. wiener becomes an administrator.
 
-# Lab: Referer-based access control
+## Lab: Referer-based access control
   
   The application checks the HTTP Referer header to decide if a request is authorized. If the Referer points to an admin page, access is granted.
 

