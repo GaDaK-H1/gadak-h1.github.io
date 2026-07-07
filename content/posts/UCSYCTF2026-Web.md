@@ -340,7 +340,7 @@ This reveals:
 /api
 ```
 
-Next, enumerate the API directory.
+Next, enumerate the second directory.
 
 ```bash
 gobuster dir \
