@@ -1,18 +1,17 @@
 ---
-title: "Command_Injection"
+title: "Command Injection"
 date: 2026-05-04
 draft: false
-
-description: "Theory, testing methodology, write ups and common attack techniques for Command_Injection."
-
+aliases:
+  - /posts/command_injection/
+description: "Theory, testing methodology, write ups and common attack techniques for Command Injection."
 tags:
-  - Command-injection
-  
-
+  - command-injection
+  - injection
+  - web
+  - owasp
 categories:
-  - concepts
-  - Labs-Solution
-
+  - methodology
 ---
 
 # Command Injection

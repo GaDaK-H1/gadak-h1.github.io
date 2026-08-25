@@ -2,18 +2,15 @@
 title: "Broken Access Control"
 date: 2026-05-04
 draft: false
-
+aliases:
+  - /posts/access_control/
 description: "Theory, testing methodology, write ups and common attack techniques for Broken Access Control."
-
 tags:
   - access-control
-  
-
+  - web
+  - owasp
 categories:
-  - concepts
-  - web 
-  - Labs-Solution
-
+  - methodology
 ---
 
 # Broken Access Control

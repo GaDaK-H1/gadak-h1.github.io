@@ -2,14 +2,17 @@
 title: "Deadbolt – License Bypass & ZIP Traversal to RCE"
 date: 2026-06-04
 draft: false
+aliases:
+  - /posts/yeswehack_deadbolt/
 description: "We chain a trivial license key bypass with a classic ZIP path traversal to get unauthenticated RCE on a Node.js plugin marketplace."
 tags:
-  - Yeswehack
   - ctf
-categories:
-  - DoJo
+  - yeswehack
+  - dojo
   - web
-  - concepts
+  - rce
+categories:
+  - writeups
 ---
 
   # Deadbolt – License Bypass & ZIP Path Traversal to Remote Code Execution

@@ -2,18 +2,13 @@
 title: "Authentication"
 date: 2026-05-22
 draft: false
-
 description: "Theory, testing methodology, write ups and common attack techniques for Authentication."
-
 tags:
-  - Authentication 
-  
-
+  - authentication
+  - web
+  - owasp
 categories:
-  - concepts
-  - web 
-  - Labs-Solution
-
+  - methodology
 ---
 
 # Authentication 

@@ -2,14 +2,20 @@ baseURL = 'https://gadak-h1.github.io/'
 languageCode = 'en-us'
 title = 'GaDaK-H1 Pentest Notes'
 theme = 'PaperMod'
+enableRobotsTXT = true
 
 [pagination]
 pagerSize = 10
 
 [taxonomies]
-tag = "tags"
-categories = "categories" 
+category = 'categories'
+tag = 'tags'
 
+# JSON output builds the client-side search index (index.json)
+[outputs]
+home = ['HTML', 'RSS', 'JSON']
+
+# ------------------------------------------------------------------ content
 [params]
 ShowReadingTime = true
 ShowShareButtons = false
@@ -17,53 +23,67 @@ ShowCodeCopyButtons = true
 ShowBreadCrumbs = true
 ShowPostNavLinks = true
 ShowToc = true
-defaultTheme = "dark"
+TocOpen = false
+defaultTheme = 'dark'
 disableThemeToggle = true
 
 [params.label]
-text = "GaDaK-H1"
-icon = "favicon.ico"
+text = 'GaDaK-H1'
+icon = 'favicon.ico'
 
 [params.homeInfoParams]
-Title = "GaDaK-H1"
-Content = "Writeups, payloads, and practical pentesting methodology"
-AlignSocialIconsTo = "left"
+Title = 'GaDaK-H1'
+Content = 'Writeups, payloads, and practical pentesting methodology'
+AlignSocialIconsTo = 'left'
 
 [[params.socialIcons]]
-name = "telegram"
-title = "Telegram"
-url = "https://t.me/SirGaDak"
+name = 'telegram'
+title = 'Telegram'
+url = 'https://t.me/SirGaDak'
 
 [[params.socialIcons]]
-name = "facebook"
-title = "Facebook"
-url = "https://www.facebook.com/share/18vEKwrdjD/"
+name = 'facebook'
+title = 'Facebook'
+url = 'https://www.facebook.com/share/18vEKwrdjD/'
 
 [[params.socialIcons]]
-name = "github"
-title = "GitHub"
-url = "https://github.com/GaDaK-H1"
+name = 'github'
+title = 'GitHub'
+url = 'https://github.com/GaDaK-H1'
 
+# ------------------------------------------------------------------ navigation
 [[menu.main]]
-identifier = "writeups"
-name = "Writeups"
-url = "/posts/"
+identifier = 'writeups'
+name = 'Writeups'
+url = '/posts/'
 weight = 10
 
 [[menu.main]]
-identifier = "payloads"
-name = "Payloads"
-url = "/payloads/"
+identifier = 'payloads'
+name = 'Payloads'
+url = '/payloads/'
 weight = 20
 
 [[menu.main]]
-identifier = "categories"
-name = "Categories"
-url = "/categories/"
+identifier = 'categories'
+name = 'Categories'
+url = '/categories/'
 weight = 30
 
 [[menu.main]]
-identifier = "tags"
-name = "Tags"
-url = "/tags/"
+identifier = 'tags'
+name = 'Tags'
+url = '/tags/'
 weight = 40
+
+[[menu.main]]
+identifier = 'archives'
+name = 'Archives'
+url = '/archives/'
+weight = 50
+
+[[menu.main]]
+identifier = 'search'
+name = 'Search'
+url = '/search/'
+weight = 60

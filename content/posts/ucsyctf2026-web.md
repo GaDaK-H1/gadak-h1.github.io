@@ -8,7 +8,7 @@ tags:
   - ucsyctf2026
   - web
 categories:
-  - Labs-Solution
+  - writeups
 ---
 
 # UCSYCTF2026 – Web Category

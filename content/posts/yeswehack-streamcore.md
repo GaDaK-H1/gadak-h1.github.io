@@ -2,14 +2,18 @@
 title: "Streamcore – JWT kid Path Traversal & HLS LFI to Sensitive Data Exposure"
 date: 2026-07-20
 draft: false
+aliases:
+  - /posts/yeswehackstreamcore/
 description: "We chain a JWT kid path traversal to forge an admin token with a local file inclusion via a malicious HLS playlist in Streamlink to read arbitrary files."
 tags:
-  - Yeswehack
   - ctf
-categories:
-  - DoJo
+  - yeswehack
+  - dojo
   - web
-  - concepts
+  - jwt
+  - lfi
+categories:
+  - writeups
 ---
 
   # Streamcore – JWT kid Path Traversal & HLS Playlist LFI to Sensitive Data Exposure
