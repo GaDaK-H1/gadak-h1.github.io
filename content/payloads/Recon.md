@@ -1,7 +1,7 @@
 ---
 title: "Recon & Enumeration Payloads"
 date: 2026-08-16
-draft: false
+draft: true
 aliases:
   - /payloads/recon/
 description: "Essential reconnaissance commands, tools, and techniques for pentesting and bug bounty."

@@ -729,3 +729,203 @@ details.toc,
         height: 42px;
     }
 }
+
+/* Search page — command-bar style, original palette */
+.search-shell {
+    max-width: 640px;
+    margin: 44px auto 0;
+    padding: 0 var(--gap);
+}
+
+.searchbox {
+    max-width: 640px;
+}
+
+.searchbar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--entry);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.searchbox:focus-within .searchbar {
+    border-color: var(--accent-border);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.searchbox .search-glyph {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    color: var(--secondary);
+    pointer-events: none;
+}
+
+#searchInput {
+    flex: 1 1 auto;
+    height: 54px;
+    padding: 0 12px 0 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--primary);
+    font-size: 1.02rem;
+    caret-color: var(--accent);
+}
+
+#searchInput::placeholder {
+    color: var(--secondary);
+}
+
+.searchbox kbd {
+    flex: 0 0 auto;
+    margin-right: 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--tertiary);
+    color: var(--secondary);
+    font-size: 0.72rem;
+    line-height: 1;
+    padding: 0.3rem 0.5rem;
+}
+
+.searchResults {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+}
+
+.searchResults li {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-raised);
+    color: var(--primary);
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 13px 16px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.searchResults li:hover,
+.searchResults li.focus {
+    border-color: var(--accent-border);
+    background: var(--accent-soft);
+}
+
+.searchResults li svg {
+    order: 3;
+    margin-left: auto;
+    width: 15px;
+    height: 15px;
+    color: var(--accent);
+    flex: 0 0 auto;
+}
+
+.searchResults li a.entry-link {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    text-indent: -200px;
+}
+
+.searchResults:empty::after {
+    content: "type to search all writeups and payloads";
+    display: block;
+    color: var(--secondary);
+    font-size: 0.82rem;
+    padding: 14px 4px;
+}
+
+@media (max-width: 768px) {
+    .search-shell {
+        margin-top: 28px;
+    }
+
+    #searchInput {
+        height: 48px;
+    }
+}
+
+/* Long-form reading typography */
+.post-content {
+    font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+    font-optical-sizing: auto;
+    font-size: 1.08rem;
+    line-height: 1.92;
+    letter-spacing: 0.002em;
+}
+
+.post-content p {
+    margin-bottom: 1.35rem;
+    text-wrap: pretty;
+}
+
+.post-content h1,
+.post-content h2,
+.post-content h3,
+.post-content h4 {
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+}
+
+.post-content h2 {
+    font-size: 1.6rem;
+    margin-top: 2.6rem;
+}
+
+.post-content h3 {
+    font-size: 1.24rem;
+    margin-top: 2rem;
+}
+
+.post-content li {
+    line-height: 1.8;
+}
+
+.post-content li + li {
+    margin-top: 0.45rem;
+}
+
+.post-content a {
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    text-underline-offset: 3px;
+}
+
+.post-content a:hover {
+    text-decoration-color: var(--accent);
+}
+
+.post-content strong {
+    color: var(--primary);
+    font-weight: 650;
+}
+
+.post-content code {
+    font-size: 0.84em;
+}
+
+.post-content blockquote {
+    font-size: 1.03rem;
+}
+
+@media (max-width: 768px) {
+    .post-content {
+        font-size: 1.04rem;
+        line-height: 1.82;
+    }
+}

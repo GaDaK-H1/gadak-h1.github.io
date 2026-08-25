@@ -1,7 +1,7 @@
 ---
 title: "Cross-Site Scripting (XSS)"
 date: 2026-08-13
-draft: false
+draft: true
 aliases:
   - /posts/crosssitescriptingxss/
 description: "Theory, testing methodology, write ups and common attack techniques for Cross-Site Scripting (XSS)."

@@ -1,8 +1,13 @@
 baseURL = 'https://gadak-h1.github.io/'
-languageCode = 'en-us'
 title = 'GaDaK-H1 Pentest Notes'
 theme = 'PaperMod'
 enableRobotsTXT = true
+
+[languages]
+    [languages.en]
+        locale = 'en-us'
+        label = 'English'
+        weight = 1
 
 [pagination]
 pagerSize = 10
@@ -69,18 +74,6 @@ identifier = 'categories'
 name = 'Categories'
 url = '/categories/'
 weight = 30
-
-[[menu.main]]
-identifier = 'tags'
-name = 'Tags'
-url = '/tags/'
-weight = 40
-
-[[menu.main]]
-identifier = 'archives'
-name = 'Archives'
-url = '/archives/'
-weight = 50
 
 [[menu.main]]
 identifier = 'search'
