@@ -295,21 +295,38 @@ Both of them didn't work.
 
 The `jku` (JWK Set URL) header points to a URL from which the server fetches a JWK Set — a collection of public keys — to verify the signature. If the server does not validate that this URL belongs to a trusted domain, we can host our own JWK Set on a server we control (the exploit server), put our public key in it, and sign the token with our own private key.
 
+An RSA key pair consists of two keys that work together: a **public key** (shared with anyone; it can only *verify* a signature) and a **private key** (kept secret; it is used to *sign*). When we generate an RSA key in the JWT Editor, both keys are created, and the key is assigned a `kid` (Key ID) — a unique identifier for that key.
+
+In this attack, two things must match:
+
+1. The `kid` of our generated public key (as shown in the JWT Editor) is placed in the JWT header.
+2. The JWK Set we host on the exploit server contains our public key **with that same `kid`**.
+
+When the server receives the token, it reads the `jku` header, fetches our JWK Set from the exploit server, and looks up the key whose `kid` matches the `kid` in the token header. Since they match, the server uses our public key to verify the signature — which we created with our own private key.
+
 **Exploitation :**
 
 Steps of the attack:
 
-Generate our RSA key pair => host the public key on the exploit server => modify the JWT to include the `jku` parameter and `sub : administrator` => sign the JWT using our private key.
+Generate our RSA key pair => host the public key (with its `kid`) on the exploit server => modify the JWT header to include `"jku": "<exploit-server-url>"` and set `kid` to our public key's kid value, with `sub : administrator` => sign the JWT using our private key.
 
 **RSA Key Generation :**
 
 ![Generate RSA](/images/JWT/generate_RSA.png)
 
+Note the `kid` value of the generated key — this is the `kid` we will put in the JWT header later.
+
 **Host the public key on the exploit server & Store :**
 
 ![exploit server](/images/JWT/exploit_server.png)
 
-**Modify the JWT to include the `kid` parameter as `public_key kid parameter` `"jku":"exploit_serverURL"` parameter as url and `sub : administrator` :**
+Copy the public key (JWK) from the JWT Editor into the `keys` array of the JWK Set served by the exploit server — it must keep the same `kid`.
+
+**Modify the JWT :**
+
+1. In the token header, set the `kid` parameter to the `kid` value of our generated public key.
+2. Add the `jku` parameter pointing to the exploit server URL where our JWK Set is hosted.
+3. In the payload, change `sub` to `administrator`.
 
 ![kid & sub change](/images/JWT/kid&sub_change.png)
 
