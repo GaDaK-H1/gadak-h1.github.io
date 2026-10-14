@@ -328,6 +328,26 @@ Copy the public key (JWK) from the JWT Editor into the `keys` array of the JWK S
 2. Add the `jku` parameter pointing to the exploit server URL where our JWK Set is hosted.
 3. In the payload, change `sub` to `administrator`.
 
+The modified header looks like this:
+
+```json
+{
+    "kid": "<our-generated-public-key-kid>",
+    "jku": "<exploit-server-url>",
+    "alg": "RS256"
+}
+```
+
+And the payload:
+
+```json
+{
+    "iss": "portswigger",
+    "exp": 1791955444,
+    "sub": "administrator"
+}
+```
+
 ![kid & sub change](/images/JWT/kid&sub_change.png)
 
 **Sign the JWT using our private key :**
