@@ -322,6 +322,23 @@ Note the `kid` value of the generated key — this is the `kid` we will put in t
 
 Copy the public key (JWK) from the JWT Editor into the `keys` array of the JWK Set served by the exploit server — it must keep the same `kid`.
 
+> Note : The JWK Set JSON field must be named `keys` (plural) — in the screenshot above it was mistakenly written as `key`, which does **not** work. Only `keys` will be recognized by the server.
+
+Example of the correct JWK Set served by the exploit server:
+
+```json
+{
+    "keys": [
+        {
+            "kty": "RSA",
+            "e": "AQAB",
+            "kid": "<our-generated-public-key-kid>",
+            "n": "<our-generated-public-key-modulus>"
+        }
+    ]
+}
+```
+
 **Modify the JWT :**
 
 1. In the token header, set the `kid` parameter to the `kid` value of our generated public key.
