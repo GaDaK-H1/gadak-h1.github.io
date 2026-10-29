@@ -288,7 +288,7 @@ We don't know which `X` is vulnerable, so we send this request to Intruder (set 
 
 After the attack finishes, click `Poll now` in Burp Collaborator.
 
-![SSRF_Final](/images/SSRF/Lab8_Lab8_SSRF_FInal.png)
+![SSRF_Final](/images/SSRF/Lab8_SSRF_FInal.png)
 
 We can see `peter.<randomString>` which is the username of the OS. Put that in Submit Solution and the lab is solved.
 
