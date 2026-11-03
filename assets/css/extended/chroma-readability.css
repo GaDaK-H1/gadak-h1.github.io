@@ -1,0 +1,21 @@
+/*
+ * Readability fix for syntax-highlighted comment-family tokens.
+ *
+ * XML prolog lines (`<?xml ... ?>`, `<!DOCTYPE ... >`) and code comments are
+ * classed as Comment/CommentPreproc tokens. The theme palette renders them in
+ * a very low-contrast gray (`#6e738d`) that is hard to read on the dark code
+ * background. Raised to the Macchiato `Subtext` ramp color, which keeps the
+ * "muted comment" look but stays clearly readable.
+ *
+ * This file lives in css/extended/ so PaperMod concatenates it after its own
+ * chroma styles (see layouts/_partials/head.html) and these rules win.
+ */
+.chroma .c,
+.chroma .ch,
+.chroma .cm,
+.chroma .c1,
+.chroma .cs,
+.chroma .cp,
+.chroma .cpf {
+    color: #a0adc8;
+}
