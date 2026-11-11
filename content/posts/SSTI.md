@@ -55,11 +55,7 @@ The static text (`Hurry! Only ... left of ... at ...`) never changes, while the 
 
 The first step is to detect whether our input is actually being evaluated. We do this by injecting syntax that only a template engine would process and watching whether the result changes.
 
-A good starting probe is the polyglot string from HackTricks:
-
-```text
-${{<%[%'"}}%\
-```
+A good starting probe is the polyglot string from HackTricks: {{< ssti-polyglot >}}
 
 This single string combines the special characters of almost every template engine (`${...}` FreeMarker/Mako, `{{...}}` Jinja2/Twig/Handlebars, `<%...%>` ERB/EJS, plus quotes and backslashes). It almost never produces valid template output anywhere, so if the application is rendering our input through an engine, it will throw an error - and a verbose error often names the engine directly. If nothing errors, the parameter is probably not being parsed as a template at all.
 
