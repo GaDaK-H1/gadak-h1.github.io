@@ -105,8 +105,8 @@ First we will try the CORS origin to know exactly what the application accepts. 
 
 And then we can see the application doesn't validate the origin - it just reflects it. The response also contains:
 
-`Access-Control-Allow-Origin: https://google.com`
-`Access-Control-Allow-Credentials: true`
+- `Access-Control-Allow-Origin: https://google.com`
+- `Access-Control-Allow-Credentials: true`
 
 **Exploitation :**
 
@@ -159,7 +159,10 @@ Submit the apikey and we solve the lab.
 
 **Analysis :**
 
-We can see the application only accepts the origin value `null`. When we send `Origin: null`, the response reflects it with `Access-Control-Allow-Origin: null` and `Access-Control-Allow-Credentials: true`.
+We can see the application only accepts the origin value `null`. When we send `Origin: null`, the response reflects it with:
+
+- `Access-Control-Allow-Origin: null`
+- `Access-Control-Allow-Credentials: true`
 
 ![Lab 2 - the null origin is trusted with credentials](/images/CORS/Lab2-CORS1.png)
 
